@@ -1,0 +1,70 @@
+X = 0;
+
+X = [   1 1 1 1 1 1  ;
+        2 2 2 2 2 2 ;
+        3 3 3 3 3 3];
+Y = 0;
+
+Y = [   1 1 1 1 1 1  ;
+        2 2 2 2 2 2 ];
+
+    
+    
+    
+    
+ X = (Problem.A).' ;
+
+YT = Y.' ;
+XT = X.' ;
+
+[n, d] = size(X); %#ok<ASGLU>
+[m, d] = size(Y);
+
+e = ones(d,1) ;
+eT = e.' ;
+
+XX = X.*X     ;
+YY = (Y.*Y).' ;
+
+
+D1 = 0;
+D1 = zeros(n,1);
+
+for i=1:n
+    temp = 0;
+    for j=1:d
+        temp = temp + XX(i,j);
+    end
+    D1(i,1) = temp;
+end
+
+D2 = 0;
+D2 = zeros(n,m);
+
+for i=1:n
+    for j=1:m
+        temp = 0;
+        for k=1:d
+            temp = temp + X(i,k)*Y(j,k);
+        end
+        D2(i,j) = temp;
+    end
+end
+
+D3 = 0;
+for i=1:m
+    temp = 0;
+    for j=1:d
+        temp = temp + YY(j,i);
+    end
+    D3(1,i) = temp;
+end
+
+i = 0;
+j = 0;
+
+
+DA = sqrt(D1 -  2*D2 + D3)  
+ 
+D = sqrt(sum(X.^2,2) - 2 * X*Y.' + sum(Y.^2,2).')
+
