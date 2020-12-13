@@ -197,44 +197,44 @@ int main(int argc, char** argv)
 
     printf("\n");
 
-//     printf("--- X ---\n");
+    printf("--- X ---\n");
 
-//     for(int i=0; i<n; i++)
-//     {
-//         printf("%d: ( ", i);
-//         for(int j=0; j<d; j++)
-//         {
+    for(int i=0; i<n; i++)
+    {
+        // printf("", i);
+        for(int j=0; j<d; j++)
+        {
 
-//             printf("%d, ", (int)mat_read_ij(&X, i, j, d) );
+            printf("%d ", (int)mat_read_ij(&X, i, j, d) );
 
-//         }
+        }
 
-//         printf(") \n");
+        printf("; \n");
         
-//     }
+    }
 
 
 //     mat_transpose(&X, &Y, n, d);
 
-// printf("\n");
+printf("\n");
 
-// printf("--- Y ---\n");
+printf("--- Y ---\n");
 
-//     for(int i=0; i<d; i++)
-//     {
-//         printf("%d: ( ", i);
-//         for(int j=0; j<n; j++)
-//         {
+    for(int i=0; i<m; i++)
+    {
+        // printf("%d: ( ", i);
+        for(int j=0; j<d; j++)
+        {
 
-//             printf("%d, ", (int)mat_read_ij(&Y, i, j, n) );
+            printf("%d ", (int)mat_read_ij(&Y, i, j, d) );
 
-//         }
+        }
 
-//         printf(") \n");
+        printf("; \n");
         
-//     }
+    }
 
-
+printf("\n");
     /*****************
      ** Run versions **
     *****************/
