@@ -1,6 +1,7 @@
 CC=gcc
 MPICC=mpicc
 CILKCC=/usr/local/OpenCilk-9.0.1-Linux/bin/clang
+#CFLAGS=-O3
 CFLAGS=-O3
 
 default: all
@@ -11,11 +12,11 @@ auxlib:
 	$(CC) $(CFLAGS) -shared -o libauxlib.so auxlib.o
 
 knn_v0:
-	$(CC) $(CFLAGS) -c -fpic knn_v0.c -lopenblas -lpthread
-	$(CC) $(CFLAGS) -shared -o libknn_v0.so knn_v0.o -lopenblas -lpthread
+	$(CC) $(CFLAGS) -c -fpic knn_v0.c 
+	$(CC) $(CFLAGS) -shared -o libknn_v0.so knn_v0.o
 
 msort:
-	$(CILKCC) $(CFLAGS) -c -fpic msort.c -fcilkplus
+	$(CILKCC) $(CFLAGS) -c -fpic msort.c
 	$(CILKCC) $(CFLAGS) -shared -o libmsort.so msort.o
 
 mmio:
@@ -23,7 +24,7 @@ mmio:
 	$(CC) $(CFLAGS) -shared -o libmmio.so mmio.o
 
 mmarket:
-	$(CC) $(CFLAGS) -c -fpic mmarket.c mat.o
+	$(CC) $(CFLAGS) -c -fpic mmarket.c
 	$(CC) $(CFLAGS) -shared -o libmmarket.so mmarket.o
 
 mat:
@@ -54,7 +55,8 @@ mat:
 # gcc ... -lopenblas -lpthread
 
 main:
-	$(CC) $(CFLAGS) -o main.o main.c auxlib.o knn_v0.o mmio.o mmarket.o mat.o -lopenblas -fcilkplus -fopenmp
+	$(CC) $(CFLAGS) -o main.o main.c auxlib.o knn_v0.o mmio.o \
+	mmarket.o mat.o -lopenblas -fcilkplus -fopenmp -lm -lrt
 
 
 all: auxlib msort mmio mat mmarket knn_v0 main
