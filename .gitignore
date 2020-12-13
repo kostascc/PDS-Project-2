@@ -60,6 +60,6 @@ dkms.conf
 
 
 # mtx Files
-#mtx/*
-#*.mtx
-#mtx/
+mtx/*
+*.mtx
+mtx/
