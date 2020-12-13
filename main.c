@@ -4,11 +4,13 @@
 #include <stdbool.h>
 #include <string.h>
 #include "mmarket.h"
+#include "knn_v0.h"
 
 
 
 int main(int argc, char** argv)
 {
+
 
     /** 
     * Available Threads.
@@ -20,10 +22,12 @@ int main(int argc, char** argv)
     char _x_filename[1024];
 
     bool _x_value_included = true;
+    bool _x_transpose = false;
 
     char _y_filename[1024];
 
     bool _y_value_included = true;
+    bool _y_transpose = false;
 
 
 
@@ -39,6 +43,27 @@ int main(int argc, char** argv)
         char _tmp_str[1024];
 
 
+        /**
+         * " -transpx -TraspX -xTransp 
+         * -XTransp -xtranspose -xTranspose "
+         */
+        if( strcmp(argv[i],"-transpx")==0 )
+        {
+            _x_transpose = true;
+            continue;
+        }
+
+
+        /**
+         * " -transpy -TraspY -yTransp 
+         * -YTransp -ytranspose -yTranspose "
+         */
+        if( strcmp(argv[i],"-transpy")==0 )
+        {
+            _y_transpose = true;
+            continue;
+        }
+
 
         /**
          * " -t_ "
@@ -46,45 +71,61 @@ int main(int argc, char** argv)
         if(sscanf(argv[i], "-t%d", &_tmp_int))
         {
             if(_tmp_int>0 && _tmp_int<64)
-            __threads = _tmp_int;
+            {
+                __threads = _tmp_int;
+                continue;
+            }
         }
 
 
-        /**
-         * " -x< Path > "
-         */
-        if(sscanf(argv[i], "-x%s", _tmp_str))
-        {
-            strcpy(_x_filename, _tmp_str);
-        }
+        // /**
+        //  * " -x< Path > "
+        //  */
+        // if(sscanf(argv[i], "-x%s", _tmp_str))
+        // {
+        //     strcpy(_x_filename, _tmp_str);
+        //     printf("xfile 1 %s\n", _x_filename);
+        //     continue;
+        // }
+
 
         /**
          * " -x < Path > "
          */
         if(strcmp(argv[i],"-x")==0)
         {
-            if(i<argc)
+            if(i<argc-1)
+            {
+                
                 strcpy(_x_filename, argv[i+1]);
+                continue;
+            }
         }
 
 
+        // /**
+        //  * " -y< Path > "
+        //  */
+        // if(sscanf(argv[i], "-y%s", _tmp_str))
+        // {
+        //     strcpy(_y_filename, _tmp_str);
+        //     printf("yfile 1 %s\n", _y_filename);
+        //     continue;
+        // }
 
-        /**
-         * " -y< Path > "
-         */
-        if(sscanf(argv[i], "-y%s", _tmp_str))
-        {
-            strcpy(_y_filename, _tmp_str);
-        }
 
         /**
          * " -y < Path > "
          */
         if(strcmp(argv[i],"-y")==0)
         {
-            if(i<argc)
+            if(i<argc-1)
+            {
                 strcpy(_y_filename, argv[i+1]);
+                continue;
+            }
         }
+
 
     }
 
@@ -101,9 +142,6 @@ int main(int argc, char** argv)
 
     // OpenMP:   
     omp_set_num_threads(__threads);
-
-
-
     
 
 
@@ -148,43 +186,53 @@ int main(int argc, char** argv)
      ** Create Matrix **
     ******************/
 
-    mmarket_import(_x_filename, &X, &n, &d, _x_value_included, true); // Import MM
+    mmarket_import(_x_filename, &X, &n, &d, _x_value_included, _x_transpose, true); // Import MM
 
     printf("n: %d, d: %d\n", n, d);
 
-    mmarket_import(_y_filename, &Y, &m, &d, _y_value_included, true); // Import MM
+    mmarket_import(_y_filename, &Y, &m, &d, _y_value_included, _y_transpose, true); // Import MM
 
     printf("m: %d, d: %d\n", m, d);
 
 
-    for(int i=0; i<d; i++)
-    {
-        for(int j=0; j<n; j++)
-        {
+    printf("\n");
 
-            printf("%d ", (int)mat_read_ij(&X, i, j, n) );
+//     printf("--- X ---\n");
 
-        }
+//     for(int i=0; i<n; i++)
+//     {
+//         printf("%d: ( ", i);
+//         for(int j=0; j<d; j++)
+//         {
 
-        printf("\n");
+//             printf("%d, ", (int)mat_read_ij(&X, i, j, d) );
+
+//         }
+
+//         printf(") \n");
         
-    }
+//     }
 
 
-printf("\n\n");
+//     mat_transpose(&X, &Y, n, d);
 
-    for(int i=0; i<d; i++)
-    {
-        for(int j=0; j<m; j++)
-        {
+// printf("\n");
 
-            printf("%d ", (int)mat_read_ij(&Y, i, j, m) );
+// printf("--- Y ---\n");
 
-        }
+//     for(int i=0; i<d; i++)
+//     {
+//         printf("%d: ( ", i);
+//         for(int j=0; j<n; j++)
+//         {
 
-        printf("\n");
+//             printf("%d, ", (int)mat_read_ij(&Y, i, j, n) );
+
+//         }
+
+//         printf(") \n");
         
-    }
+//     }
 
 
     /*****************
@@ -193,11 +241,9 @@ printf("\n\n");
 
     for(int i=0; i<argc; i++){
 
-        // if(strcmp(argv[i],"-v0")==0){
-        //     knn_v0( X , Y , n , m , d , k );
-        // }
-
-        
+        if(strcmp(argv[i],"-v0")==0){
+            knn_v0( X , Y , n , m , d , k );
+        }
 
         // if(strcmp(argv[i],"-coorow")==0){
         //     _coo_row(mat);
@@ -212,6 +258,9 @@ printf("\n\n");
         // }
     }
 
+
+    free(X);
+    free(Y);
 
 
     return 0;

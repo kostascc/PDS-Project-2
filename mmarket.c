@@ -2,7 +2,7 @@
 
 
 
-void mmarket_import(char* filename, double** X, int* n, int* d, bool _x_value_included, bool __show_info){
+void mmarket_import(char* filename, double** X, int* n, int* d, bool _x_value_included, bool _x_transpose, bool __show_info){
 
 
     time_t t;
@@ -122,23 +122,40 @@ void mmarket_import(char* filename, double** X, int* n, int* d, bool _x_value_in
         printf("[Begin Creating Matrix...]\n");
 
     
+    
+
 
     // Size of memory allocation.
     // This is supposed to help later remove
     // any values that don't belong to the matrix.
+    if(!_x_transpose)
+    {
+        *d = ( *d > 0 ) ?
+                *d :            // keep d
+                N  ;            // set N
 
-    *d = ( *d > 0 ) ?
-            *d :            // keep d
-            M  ;            // set M
+        *n = M;
+    }
+    else
+    {
+        *d = ( *d > 0 ) ?
+                *d :            // keep d
+                M  ;            // set N
 
-    // *n = ( *n > 0 ) ?
-    //         *n :            // Keep N
-    //         N  ;            // Set N
-    *n = N;
+        *n = N;
+    }
 
-    int malloc_size = (*d) * N ;
 
-    printf("Malloc: %d\n", malloc_size);
+    // memory Allocation Size
+    int malloc_size =  (*d) * (*n) ;
+
+    if(malloc_size<1)
+    {
+        printf("Failed calculating memory allocation (mmarket)!\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // printf("Malloc: %d\n", malloc_size);
 
 
     // Size of X: M * N.
@@ -147,7 +164,7 @@ void mmarket_import(char* filename, double** X, int* n, int* d, bool _x_value_in
 
     if(X == NULL)
     {
-        printf("Memory Allocation Failed while allocating X.\n"); 
+        printf("Failed while allocating memory for X (mmarket).\n"); 
         exit(EXIT_FAILURE); 
     }
     // else if(__show_info)
@@ -177,17 +194,30 @@ void mmarket_import(char* filename, double** X, int* n, int* d, bool _x_value_in
     for(int kk=0; kk<nz; kk++)
     {
 
-        ii = I[kk];
-        jj = J[kk];
+        if(!_x_transpose)
+        {
+            ii = I[kk];
+            jj = J[kk];
+        }
+        else
+        {
+            ii = J[kk];
+            jj = I[kk];
+        }
+
         va = val[kk];
+        
 
-        if(ii >= *d)
+        if(ii >= *n)
             continue;
 
-        if(jj >= *n)
+        if(jj >= *d)
             continue;
 
-        *( *X + ii * N + jj ) = (double) va;
+
+
+
+        *( *X + ii * (*d) + jj ) = (double) va;
 
     }
 
@@ -208,7 +238,7 @@ void mmarket_import(char* filename, double** X, int* n, int* d, bool _x_value_in
 
 
 
-    printf(" > Imported M: %d, N: %d, nz: %d\n", M, N, nz);
+    printf(" > Imported M: %d, N: %d, nz: %d as n: %d, d: %d.\n", M, N, nz, *n, *d);
 
     /***************
     ** Clean Up ! **

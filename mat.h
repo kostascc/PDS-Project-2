@@ -21,4 +21,8 @@ void mat_set_ij(double** X, double val, int i, int j, int n);
  **/
 double mat_read_ij(double** X, int i, int j, int n);
 
+
+
+void mat_transpose(double** X, double** T, int M, int N);
+
 #endif  // mat_h__

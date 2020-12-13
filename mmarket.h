@@ -16,7 +16,7 @@
 /**
  * Import Matrix-Market file
  **/
-void mmarket_import(char* filename, double** X, int* n, int* d, bool _x_value_included, bool __show_info);
+void mmarket_import(char* filename, double** X, int* n, int* d, bool _x_value_included, bool _x_transpose, bool __show_info);
 
 
 #endif  // mmarket_h__

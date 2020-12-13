@@ -6,6 +6,14 @@ CFLAGS=-O3
 default: all
 
 
+auxlib:
+	$(CC) $(CFLAGS) -c -fpic auxlib.c
+	$(CC) $(CFLAGS) -shared -o libauxlib.so auxlib.o
+
+knn_v0:
+	$(CC) $(CFLAGS) -c -fpic knn_v0.c -lopenblas -lpthread
+	$(CC) $(CFLAGS) -shared -o libknn_v0.so knn_v0.o -lopenblas -lpthread
+
 msort:
 	$(CILKCC) $(CFLAGS) -c -fpic msort.c -fcilkplus
 	$(CILKCC) $(CFLAGS) -shared -o libmsort.so msort.o
@@ -43,11 +51,13 @@ mat:
 # 	$(CC) $(CFLAGS) -o triangles.o triangles.c mat.o -fcilkplus -fopenmp
 
 
+# gcc ... -lopenblas -lpthread
+
 main:
-	$(CC) $(CFLAGS) -o main.o main.c mmio.o mmarket.o mat.o -fcilkplus -fopenmp
+	$(CC) $(CFLAGS) -o main.o main.c auxlib.o knn_v0.o mmio.o mmarket.o mat.o -lopenblas -fcilkplus -fopenmp
 
 
-all: msort mmio mat mmarket main
+all: auxlib msort mmio mat mmarket knn_v0 main
 
 .PHONY: all test clean
 
