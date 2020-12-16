@@ -1,27 +1,40 @@
 #include "knn_v0.h"
 
 
-
-// void main()
-// {
-//   int i=0;
-//   double A[6] = {1.0,2.0,1.0,-3.0,4.0,-1.0};
-//   double B[6] = {1.0,2.0,1.0,-3.0,4.0,-1.0};
-//   double C[9] = {.5,.5,.5,.5,.5,.5,.5,.5,.5};
-//   cblas_dgemm(CblasColMajor, CblasNoTrans, CblasTrans,3,3,2,1,A, 3, B, 3,2,C,3);
-//   for(i=0; i<9; i++)
-//     printf("%lf ", C[i]);
-//   printf("\n");
-// }
-
-
-
+#define _DIST_PRINT_VAR "DIST_PRINT"
+#define _KNN_PRINT_VAR "KNN_PRINT"
+#define _TIMER_PRINT_VAR "TIMER_PRINT"
 
 
 knnresult knn_v0(double * X, double * Y, int n, int m, int d, int k)
 {
 
-    bool __show_info = true;
+
+    /***************************************
+     * Set up Environment Parameters
+     * and debugging modes
+     ***************************************/
+
+    bool _knn_print = false;
+    bool _dist_print = false;
+    bool _timer_print = false;
+
+
+    char *s_tmp;
+
+    s_tmp = getenv( _KNN_PRINT_VAR );
+    _knn_print = (s_tmp!=NULL)? ( strchr(s_tmp,'1')!=NULL? true : false  ) : false;
+    // free(s_tmp);
+
+    s_tmp = getenv( _DIST_PRINT_VAR );
+    _dist_print = (s_tmp!=NULL)? ( strchr(s_tmp,'1')!=NULL? true : false  ) : false;
+    // free(s_tmp);
+
+    s_tmp = getenv( _TIMER_PRINT_VAR );
+    _timer_print = (s_tmp!=NULL)? ( strchr(s_tmp,'1')!=NULL? true : false  ) : false;
+
+    /*************************************/
+    
 
     // Start Timer
     time_t t;
@@ -30,21 +43,64 @@ knnresult knn_v0(double * X, double * Y, int n, int m, int d, int k)
     clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
 
+    // double * XT;    // X Transpose
+    // mat_transpose(&X, &XT, n, d);
 
-    double * XT;    // X Transpose
-    mat_transpose(&X, &XT, n, d);
-
-    double * YT;    // Y Transpose
-    mat_transpose(&Y, &YT, m, d);
-
+    // double * YT;    // Y Transpose
+    // mat_transpose(&Y, &YT, m, d);
 
 
-    /**
-     * dgemm:  C = α . A x B + β . C
-     * Transpose: CblasNoTrans / CblasTrans
-     **/
+    /**************************
+     *       X .* X
+     *        (NxD)
+     **************************/
+    double * X_X = (double *) malloc(n * d *sizeof(double));
+    if(X_X==NULL)
+    {
+        printf("Failed allocating memory [X_X] (knn_v0).\n");
+        exit(EXIT_FAILURE);
+    }
 
-    int mm, nn, kk, alpha, beta;
+    cilk_for(int i=0; i<n*d; i++)
+    {
+        X_X[i] = X[i] * X[i];
+    }
+    
+
+
+    /***************************************
+     *           D1   (Nx1)
+     * for i=1:n
+     *   temp = 0;
+     *     for j=1:d
+     *       temp = temp + XX(i,j);
+     *   D1(i,1) = temp; 
+     **************************************/
+    double * D1 = malloc(n*sizeof(double));
+    if(D1==NULL)
+    {
+        printf("Failed allocating memory [D1] (knn_v0).\n");
+        exit(EXIT_FAILURE);
+    }
+    cilk_for(int i=0; i<n; i++)
+    {
+        double d_tmp = 0.0;
+        for(int j=0; j<d; j++)
+        {
+            d_tmp += (double) X_X[d*i+j];  // tmp += X(i,j)
+        }
+        D1[i] = d_tmp;
+    }
+
+    // X_X is not needed any more
+    free(X_X);
+
+
+    // printf("--- D1 ---\n");
+    // for(int i=0; i<n; i++){
+    //     printf("%d ", (int)D1[i]);
+    // }
+    // printf("\n\n");
 
 
 
@@ -53,13 +109,14 @@ knnresult knn_v0(double * X, double * Y, int n, int m, int d, int k)
      *          (NxM)
      ******************************/
 
-    double * D2 = calloc(m*n, sizeof(double));
+    double * D2 = malloc(m*n*sizeof(double));
 
-
-    printf("1\n");
-
+    
+    /**
+     * dgemm:  C = α . A x B + β . C
+     * Transpose: CblasNoTrans / CblasTrans
+     **/
     // NxD * DxM
-
     cblas_dgemm(
         CblasRowMajor,  // Store Order
         CblasNoTrans,   // A Transpose
@@ -72,10 +129,10 @@ knnresult knn_v0(double * X, double * Y, int n, int m, int d, int k)
         d,              // N
         0,              // beta
         D2,             // C matrix
-        n               // N
+        m               // N
     );
 
-    printf("dd %d\n", n*d);
+
     // printf("--- D2 ---\n");
 
     // for(int i=0; i<n; i++)
@@ -96,71 +153,58 @@ knnresult knn_v0(double * X, double * Y, int n, int m, int d, int k)
 
 
 
-    /**************************
-     *       X .* X
-     *        (NxD)
-     **************************/
-    double* X_X = malloc(n*d*sizeof(double));
-    if(X_X==NULL)
+
+    /***************************
+     *     D2 <-- D12  (NxM)
+     *      (Nx1) + (NxM)
+     ***************************/
+
+    cilk_for(int i=0; i<n; i++)
     {
-        printf("Failed allocating memory [X_X] (knn_v0).\n");
-        exit(EXIT_FAILURE);
+        double d_tmp = D1[i];
+        cilk_for(int j=0; j<m; j++)
+        {
+            D2[i*m +j] += d_tmp;    // D2(i,j) += D1(i,1)
+        }
     }
 
-    
-    printf("2\n");
-    return;
 
-    for(int i=0; i<n*d; i++)
-    {
-        X_X[i] = X[i] * X[i];
-    }
 
-    
+    // D1 can be freed here
+    free(D1);
+
+    // D12 is ready (in D2)
+
 
     /**************************
      *       (Y .* Y).'
      *        (DxM)
      **************************/
 
-    double * Y_Y = calloc(m*d, sizeof(double));
-
-    for(int i=0; i<m*d; i++)
+    double * Y_Y = malloc(m*d* sizeof(double));
+    if(Y_Y==NULL)
+    {
+        printf("Failed allocating memory [Y_Y] (knn_v0).\n");
+        exit(EXIT_FAILURE);
+    }
+    cilk_for(int i=0; i<m*d; i++)
     {
         Y_Y[i] = Y[i] * Y[i];
     }
 
-    double * Y_Y_T = calloc(d*m, sizeof(double));
 
-    mat_transpose(&Y_Y, &Y_Y_T, m, d);
+    // double * Y_Y_T = malloc(d*m*sizeof(double));
+    // if(Y_Y_T==NULL)
+    // {
+    //     printf("Failed allocating memory [Y_Y_T] (knn_v0).\n");
+    //     exit(EXIT_FAILURE);
+    // }
 
+    // mat_transpose(&Y_Y, &Y_Y_T, m, d);
 
-    printf("3\n");
+    // Y_Y from D3 is not needed
+    // free(Y_Y);
 
-
-    /***************************************
-     *           D1   (Nx1)
-     * for i=1:n
-     *   temp = 0;
-     *     for j=1:d
-     *       temp = temp + XX(i,j);
-     *   D1(i,1) = temp; 
-     **************************************/
-    double i_tmp;
-    double * D1 = calloc(n,sizeof(double));
-    for(int i=0; i<n; i++)
-    {
-        i_tmp = 0.0;
-        for(int j=0; j<d; j++)
-        {
-            i_tmp += (double) X_X[d*i+j];  // tmp += X(i,j)
-        }
-        D1[i] = i_tmp;
-    }
-
-
-
-    printf("4\n");
 
     /***************************************
      *           D3   (1xM)
@@ -171,39 +215,27 @@ knnresult knn_v0(double * X, double * Y, int n, int m, int d, int k)
      *    D3(1,i) = temp; 
      **************************************/
 
-    double * D3 = calloc(m, sizeof(double));
-    for(int i=0; i<m; i++)
+    double * D3 = malloc(m* sizeof(double));
+    if(D3==NULL)
     {
-        i_tmp = 0.0;
+        printf("Failed allocating memory [D3] (knn_v0).\n");
+        exit(EXIT_FAILURE);
+    }
+    
+    /**
+     * Instead of doing an addition for
+     * each row, we will be doing the same 
+     * for each column. (~10% Improvement)
+     **/
+    cilk_for(int i=0; i<m; i++)
+    {
+        double d_tmp = 0.0;
         for(int j=0; j<d; j++)
         {
-            i_tmp += (double) Y_Y_T[j*m+i];  // tmp += Y_Y_T(i,j)
+            d_tmp += (double) Y_Y[i*d+j];
         }
-        D3[i] = i_tmp;
+        D3[i] = d_tmp;
     }
-
-
-
-
-    // printf("--- (Y.*Y).' ---\n");
-
-    // for(int i=0; i<m; i++)
-    // {
-    //     // printf("%d: ( ", i);
-    //     for(int j=0; j<d; j++)
-    //     {
-            
-    //         printf("%d ", (int)mat_read_ij(&Y, i, j, n) );
-
-    //     }
-
-    //     printf("; \n");
-        
-    // }
-
-    // printf("\n");
-
-
 
 
     // printf("--- D3 ---\n");
@@ -212,105 +244,142 @@ knnresult knn_v0(double * X, double * Y, int n, int m, int d, int k)
     // }
     // printf("\n\n");
 
-
-    // printf("--- D1 ---\n");
-    // for(int i=0; i<n; i++){
-    //     printf("%d ", (int)D1[i]);
-    // }
-    // printf("\n\n");
-
-
-
-    /***************************
-     *     D2 <-- D12  (NxM)
-     *      (Nx1) + (NxM)
-     ***************************/
-
-    for(int i=0; i<n; i++)
-    {
-        i_tmp = D1[i];
-        for(int j=0; j<m; j++)
-        {
-            D2[i*m +j] += i_tmp;    // D2(i,j) += D1(i,1)
-        }
-    }
+    free(Y_Y);
 
 
     /***************************
      *     D2 <-- D23  (NxM)
-     *      (1xN) + (NxM)
+     *      (1xM) + (NxM)
      ***************************/
-    for(int j=0; j<m; j++)
+    double * D2T = (double *) malloc(n*m*sizeof(double));
+    mat_transpose(&D2, &D2T, n, m);
+    
+    free(D2);
+
+    /** 
+     * Instead of summing app for every
+     * row on the Y_Y Transposed, we
+     * will be adding to each column
+     * of the original Y_Y.
+     **/
+    cilk_for(int i=0; i<m; i++)
     {
-        i_tmp = D3[j];
-        for(int i=0; i<n; i++)
+        double d_tmp = D3[i];
+        cilk_for(int j=0; j<n; j++)
         {
-            D2[i*m +j] += i_tmp;    // D2(i,j) += D3(1,i)
+            D2T[i*n + j] += d_tmp;
         }
     }
+
+
+    // Clean Up
+    free(D3);
 
 
 
     /*************************
      *     sqrt(D2)   (NxM)
      *************************/
-    for(int i=0; i<n*m; i++)
+    cilk_for(int i=0; i<n*m; i++)
     {
-        D2[i] = (double)sqrt(D2[i]);
+        D2T[i] = (double)sqrt(D2T[i]);
     }
 
-    free(D1);
-    free(D3);
-    free(X_X);
-    free(Y_Y);
-    free(Y_Y_T);
 
-    //ouble * C = D2;
 
-    // printf("--- C ---\n");
+    if(_dist_print)
+    {
+        printf("--- C ---\n");
 
-    // for(int i=0; i<n; i++)
-    // {
-    //     for(int j=0; j<m; j++)
-    //     {
+        for(int i=0; i<n; i++)
+        {
+            for(int j=0; j<m; j++)
+            {
 
-    //         printf("%f ", (double) mat_read_ij(&C, i, j, m) );
+                printf("%f ", (double) mat_read_ij(&D2T, j, i, n) );
 
-    //     }
+            }
 
-    //     printf("; \n");
+            printf("; \n");
         
-    // }
+        }
 
-    // printf("\n");
-
+        printf("\n");
+    }
 
 
     /**
      * C is ready
      **/
 
+	knnresult res;
+	res.k = k;
+	res.m = m;
+	res.nidx  = (int *)   malloc(m*k*sizeof(int));
+	res.ndist = (double *)malloc(m*k*sizeof(double));
+	
+	// double * CT = malloc(n*m*sizeof(double));
+    // if(CT==NULL)
+    // {
+    //     printf("Failed allocating memory [CT] (knn_v0).\n");
+    //     exit(EXIT_FAILURE);
+    // }
+
+	// mat_transpose(&D2, &CT, n, m);
+    // free(D2);
+
+
+    /**
+     * For each query point, spawn a 
+     * thread and execute the knn search.
+     * The results are returned directly 
+     * into the correct places within the 
+     * resulting matrices.
+     **/
+	cilk_for(int mm=0; mm<m; mm++)
+	{
+		aux_sort_idx(&D2T, &res.nidx, &res.ndist, n, m, mm, k);
+	}
+    
+
+    // free(CT);
 
 
 
+    /**
+     * Result
+     **/
+    if(_knn_print==1)
+    {
+        printf("\n--- RES ---");
+        for(int i=0; i<m; i++)
+        {
+            printf("\nindx: ", m);
+            for(int j=0; j<k; j++)
+            {
+                printf("%d, ", (int) *(res.nidx+i*k+j));
+            }
+            printf("\ndist: ");
+            for(int j=0; j<k; j++)
+            {
+                printf("%f, ", (double) *(res.ndist+i*k+j));
+            }
 
+        }
+    }
 
-
-
-
-
-    knnresult res;
 
 
     // Stop Timer
     clock_gettime(CLOCK_MONOTONIC_RAW, &end);
     float delta_us = (float) ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000)/ (1000000);
-    if(__show_info)
+    
+    if(_timer_print)
+    {
         printf(" > V0 took %f s\n", delta_us);
+    }
 
 
     return res;
 }
-
-
 
