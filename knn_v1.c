@@ -23,7 +23,7 @@
 
 
 
-knnresult knn_v1(double * X, double * Y, int n, int m, int d, int k)
+knnresult distrAllkNN(double * X, double * Y, int n, int m, int d, int k)
 {
 
 
@@ -64,34 +64,35 @@ knnresult knn_v1(double * X, double * Y, int n, int m, int d, int k)
     MPI_Init(NULL, NULL);
 
     // Get Cluster Size
-    int size_Of_Cluster;
+    int cluster_size;
     MPI_Comm_size(MPI_COMM_WORLD, &size_Of_Cluster);
 
     // Get Process ID
     int mpi_id;
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_id);
 
+    
+
+    
 
 
-    uint32_t *mpi_comm = malloc(4*sizeof(uint32_t));
-    mpi_comm[0]
 
 
-    MPI_Recv(void *buff,
-                   int count,
-                   MPI_Datatype type,
-                   int source,
-                   int tag,
-                   int comm,
-                   MPI_Request *request )
+    // MPI_Recv(void *buff,
+    //                int count,
+    //                MPI_Datatype type,
+    //                int source,
+    //                int tag,
+    //                int comm,
+    //                MPI_Request *request )
 
-    MPI_Isend(void *buff,
-                   int count,
-                   MPI_Datatype type,
-                   int dest,
-                   int tag,
-                   int comm,
-                   MPI_Request *request )
+    // MPI_Isend(void *buff,
+    //                int count,
+    //                MPI_Datatype type,
+    //                int dest,
+    //                int tag,
+    //                int comm,
+    //                MPI_Request *request )
 
     
 

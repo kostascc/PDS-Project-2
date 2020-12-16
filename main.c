@@ -381,7 +381,7 @@ int main(int argc, char** argv)
     for(int i=0; i<argc; i++){
 
         if(strcmp(argv[i],"-v0")==0){
-            knn_v0( X , Y , n , m , d , k );
+            kNN( X , Y , n , m , d , k );
         }
 
         if(strcmp(argv[i],"-v1")==0){

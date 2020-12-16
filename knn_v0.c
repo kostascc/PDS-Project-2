@@ -6,7 +6,7 @@
 #define _TIMER_PRINT_VAR "TIMER_PRINT"
 
 
-knnresult knn_v0(double * X, double * Y, int n, int m, int d, int k)
+knnresult kNN(double * X, double * Y, int n, int m, int d, int k)
 {
 
 
