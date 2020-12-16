@@ -1,7 +1,16 @@
  #!/bin/bash
 
-export OPENBLAS_NUM_THREADS=8
-export GOTO_NUM_THREADS=8
-export OMP_NUM_THREADS=8
+#export OPENBLAS_NUM_THREADS=8
+#export GOTO_NUM_THREADS=8
+#export OMP_NUM_THREADS=8
+export CILK_NWORKERS=8
 
-clear && make clean && make all && clear && make test ARGS="$1"
+# sudo apt update -y && sudo apt install -y glibc-source
+
+export KNN_PRINT=0
+export DIST_PRINT=0
+export TIMER_PRINT=1
+# export MPI_NWORKERS=1
+export test=1
+
+clear && make clean && make all && clear && mpirun -np $MPI_NWORKERS main.o $1
