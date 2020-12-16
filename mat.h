@@ -8,6 +8,7 @@
 #include <time.h>
 #include <stdint.h>
 #include "msort.h"
+#include <cilk/cilk.h>
 
 
 /**

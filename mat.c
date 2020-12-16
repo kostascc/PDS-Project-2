@@ -22,7 +22,7 @@ double mat_read_ij(double** X, int i, int j, int n)
 void mat_transpose(double** X, double** T, int M, int N)
 {
 
-    *T = malloc(M*N*sizeof(double));
+    //*T = malloc(M*N*sizeof(double));
 
     if(*T==NULL)
     {
@@ -31,9 +31,9 @@ void mat_transpose(double** X, double** T, int M, int N)
     }
 
 
-    for(int i=0; i<M; i++)
+    cilk_for(int i=0; i<M; i++)
     {
-        for(int j=0; j<N; j++)
+        cilk_for(int j=0; j<N; j++)
         {
 
             *( *(T) + i + M * j ) = *( *(X) + j + N * i );
