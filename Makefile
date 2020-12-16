@@ -1,26 +1,29 @@
 CC=gcc
 MPICC=mpicc
 CILKCC=/usr/local/OpenCilk-9.0.1-Linux/bin/clang
-#CFLAGS=-O3
 CFLAGS=-O3
 
 default: all
 
 
 auxlib:
-	$(CC) $(CFLAGS) -c -fpic auxlib.c
-	$(CC) $(CFLAGS) -shared -o libauxlib.so auxlib.o
+	$(CC) $(CFLAGS) -c -fpic auxlib.c -fcilkplus
+	$(CC) $(CFLAGS) -shared -o libauxlib.so auxlib.o -fcilkplus
 
 knn_v0:
-	$(CC) $(CFLAGS) -c -fpic knn_v0.c 
-	$(CC) $(CFLAGS) -shared -o libknn_v0.so knn_v0.o
+	$(CC) $(CFLAGS) -c -fpic knn_v0.c -fcilkplus
+	$(CC) $(CFLAGS) -shared -o libknn_v0.so knn_v0.o -fcilkplus
+
+knn_v1:
+	$(MPICC) $(CFLAGS) -c -fpic knn_v1.c -fcilkplus 
+	$(MPICC) $(CFLAGS) -shared -o libknn_v1.so knn_v1.o -fcilkplus
 
 msort:
 	$(CILKCC) $(CFLAGS) -c -fpic msort.c
 	$(CILKCC) $(CFLAGS) -shared -o libmsort.so msort.o
 
 mmio:
-	$(CC) $(CFLAGS) -c -fpic mmio.c
+	$(CC) $(CFLAGS) -c -fpic mmio.c 
 	$(CC) $(CFLAGS) -shared -o libmmio.so mmio.o
 
 mmarket:
@@ -29,7 +32,7 @@ mmarket:
 
 mat:
 	$(CC) $(CFLAGS) -c -fpic mat.c -fcilkplus
-	$(CC) $(CFLAGS) -shared -o libmat.so mat.o 
+	$(CC) $(CFLAGS) -shared -o libmat.so mat.o -fcilkplus
 
 
 # v4:
@@ -55,11 +58,12 @@ mat:
 # gcc ... -lopenblas -lpthread
 
 main:
-	$(CC) $(CFLAGS) -o main.o main.c auxlib.o knn_v0.o mmio.o \
-	mmarket.o mat.o -lopenblas -fcilkplus -fopenmp -lm -lrt
+	$(MPICC) $(CFLAGS) -o main.o main.c auxlib.o knn_v0.o \
+	knn_v1.o mmio.o mmarket.o mat.o \
+	-lopenblas -fcilkplus -fopenmp -lpthread -lm
 
 
-all: auxlib msort mmio mat mmarket knn_v0 main
+all: auxlib mmio mat mmarket knn_v0 knn_v1 main
 
 .PHONY: all test clean
 
