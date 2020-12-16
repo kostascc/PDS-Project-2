@@ -5,19 +5,21 @@
 #include <string.h>
 #include "mmarket.h"
 #include "knn_v0.h"
+#include "knn_v1.h"
+#include <mpi.h>
+
+
+
+// Show Created or imported
+// matrices in stdout
+#define MATRIX_PRINT 0
 
 
 
 int main(int argc, char** argv)
 {
 
-
-    /** 
-    * Available Threads.
-    * Defaults to 8.
-    **/
-    int __threads = 8;
-
+    // int __threads;
 
     char _x_filename[1024];
 
@@ -207,12 +209,12 @@ int main(int argc, char** argv)
     **/
 
     // Cilk:
-    char _tmp_str[4];
-    sprintf(_tmp_str, "%d", __threads);
-    __cilkrts_set_param("nworkers", _tmp_str);
+    // char _tmp_str[4];
+    // sprintf(_tmp_str, "%d", __threads);
+    // __cilkrts_set_param("nworkers", _tmp_str);
 
-    // OpenMP:   
-    omp_set_num_threads(__threads);
+    // // OpenMP:   
+    // omp_set_num_threads(__threads);
     
 
 
@@ -231,12 +233,12 @@ int main(int argc, char** argv)
     /**
      * Corpus points count
      **/
-    int n;
+    int n = (_rand) ? _n : 0;
 
     /**
      * Query points count
      **/
-    int m;
+    int m = (_rand) ? _m : 0;
 
     /**
      * Dimension count
@@ -245,67 +247,133 @@ int main(int argc, char** argv)
      * otherwise mmarket_import might keep an 
      * arbitrary number of dimensions.
      **/
-    int d = 0;
+    int d = (_rand) ? _d : 0;
     
     /**
      * neighbours count
      **/
-    int k;
+    int k = _k;
 
 
-    /******************
-     ** Create Matrix **
-    ******************/
 
-    mmarket_import(_x_filename, &X, &n, &d, _x_value_included, _x_transpose, true); // Import MM
-
-    printf("n: %d, d: %d\n", n, d);
-
-    mmarket_import(_y_filename, &Y, &m, &d, _y_value_included, _y_transpose, true); // Import MM
-
-    printf("m: %d, d: %d\n", m, d);
-
-
-    printf("\n");
-
-    printf("--- X ---\n");
-
-    for(int i=0; i<n; i++)
+    if(!_rand)
     {
-        // printf("", i);
-        for(int j=0; j<d; j++)
+
+        /*******************
+         ** Import Matrix **
+        ********************/
+
+        mmarket_import(_x_filename, &X, &n, &d, _x_value_included, _x_transpose, true); // Import MM
+
+        printf("n: %d, d: %d\n", n, d);
+
+        mmarket_import(_y_filename, &Y, &m, &d, _y_value_included, _y_transpose, true); // Import MM
+
+        printf("m: %d, d: %d\n", m, d);
+
+    }
+    else
+    {
+
+        /*******************
+        ** Create Matrix **
+        ********************/
+
+        // X
+        X = (double *) malloc(n*d*sizeof(double));
+        if(X==NULL)
         {
-
-            printf("%d ", (int)mat_read_ij(&X, i, j, d) );
-
+            printf("Failed Allocating memory (main).\n");
+        }
+        for(int i=0; i<n; i++)
+        {
+            for(int j=0; j<d; j++)
+            {
+                X[i*d+j] = (double) rand()/RAND_MAX*100.0;
+            }
         }
 
-        printf("; \n");
-        
+
+        // Y
+        Y = (double *) malloc(n*d*sizeof(double));
+        if(Y==NULL)
+        {
+            printf("Failed Allocating memory (main).\n");
+        }
+        for(int i=0; i<m; i++)
+        {
+            for(int j=0; j<d; j++)
+            {
+                Y[i*d+j] = (double) rand()/RAND_MAX*100.0;
+            }
+        }
+
     }
 
 
-//     mat_transpose(&X, &Y, n, d);
-
-printf("\n");
-
-printf("--- Y ---\n");
-
-    for(int i=0; i<m; i++)
+    if(k>n)
     {
-        // printf("%d: ( ", i);
-        for(int j=0; j<d; j++)
-        {
-
-            printf("%d ", (int)mat_read_ij(&Y, i, j, d) );
-
-        }
-
-        printf("; \n");
-        
+        printf("Illegal Parameters (k>n).\n");
+        exit(EXIT_FAILURE);
     }
 
-printf("\n");
+    if(d<1||d>200)
+    {
+        printf("Illegal Parameters (d<1 or d>200).\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if(n<1 || m<1)
+    {
+        printf("Illegal Parameters (n or m <0).\n");
+        exit(EXIT_FAILURE);
+    }
+
+
+    if(MATRIX_PRINT)
+    {
+        printf("\n");
+
+        printf("--- X ---\n");
+
+        for(int i=0; i<n; i++)
+        {
+            // printf("", i);
+            for(int j=0; j<d; j++)
+            {
+
+                printf("%d ", (int)mat_read_ij(&X, i, j, d) );
+
+            }
+
+            printf("; \n");
+            
+        }
+
+
+        //     mat_transpose(&X, &Y, n, d);
+
+        printf("\n");
+
+        printf("--- Y ---\n");
+
+        for(int i=0; i<m; i++)
+        {
+            // printf("%d: ( ", i);
+            for(int j=0; j<d; j++)
+            {
+
+                printf("%d ", (int)mat_read_ij(&Y, i, j, d) );
+
+            }
+
+            printf("; \n");
+            
+        }
+
+    }
+
+
     /*****************
      ** Run versions **
     *****************/
@@ -314,6 +382,10 @@ printf("\n");
 
         if(strcmp(argv[i],"-v0")==0){
             knn_v0( X , Y , n , m , d , k );
+        }
+
+        if(strcmp(argv[i],"-v1")==0){
+            knn_v1( X , Y , n , m , d , k );
         }
 
         // if(strcmp(argv[i],"-coorow")==0){
@@ -332,7 +404,7 @@ printf("\n");
 
     free(X);
     free(Y);
-
+    
 
     return 0;
 
