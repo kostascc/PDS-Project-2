@@ -29,6 +29,13 @@ int main(int argc, char** argv)
     bool _y_value_included = true;
     bool _y_transpose = false;
 
+    int _n = 1000;
+    int _m = 100;
+    int _d = 10;
+    int _k = 5;
+
+    bool _rand = false;
+
 
 
     /** 
@@ -70,11 +77,75 @@ int main(int argc, char** argv)
          */
         if(sscanf(argv[i], "-t%d", &_tmp_int))
         {
-            if(_tmp_int>0 && _tmp_int<64)
+            // if(_tmp_int>0 && _tmp_int<64)
+            // {
+            //     __threads = _tmp_int;
+            //     continue;
+            // }
+            printf("-t Parameter Deprecated: Please use 'export CILK_NWORKERS=_' instead.\n");
+        }
+
+
+
+        /**
+         * " -k_ "
+         */
+        if(sscanf(argv[i], "-k%d", &_tmp_int))
+        {
+            if(_tmp_int>0)
             {
-                __threads = _tmp_int;
+                _k = _tmp_int;
                 continue;
             }
+        }
+
+
+        /**
+         * " -m_ "
+         */
+        if(sscanf(argv[i], "-m%d", &_tmp_int))
+        {
+            if(_tmp_int>0)
+            {
+                _m = _tmp_int;
+                continue;
+            }
+        }
+
+
+        /**
+         * " -n_ "
+         */
+        if(sscanf(argv[i], "-n%d", &_tmp_int))
+        {
+            if(_tmp_int>0)
+            {
+                _n = _tmp_int;
+                continue;
+            }
+        }
+
+
+        /**
+         * " -d_ "
+         */
+        if(sscanf(argv[i], "-d%d", &_tmp_int))
+        {
+            if(_tmp_int>0)
+            {
+                _d = _tmp_int;
+                continue;
+            }
+        }
+
+
+        /**
+         * " -rand "
+         */
+        if( strcmp(argv[i],"-rand")==0 )
+        {
+            _rand = true;
+            continue;
         }
 
 
