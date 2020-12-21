@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <cilk/cilk.h>
 #include <mpi.h>
-
+#include "knn_v0.h"
 
 
 knnresult distrAllkNN(double * X, int n, int d, int k);

@@ -1,57 +1,170 @@
 #include "knn_v1.h"
 
 
-#define _DIST_PRINT_VAR "DIST_PRINT"
-#define _KNN_PRINT_VAR "KNN_PRINT"
-#define _TIMER_PRINT_VAR "TIMER_PRINT"
-
-// MPI Default Buffer Size
-#define _MPI_COM_COUNT 1
+#define DEBUG_A 1
+#define DEBUG_MPI 1
 
 
-// MPI Buffer Indexes
-#define MPI_COM_STATUS_INDX 0    // Status
-#define MPI_COM_DATA_MODE_INDX 1 // Data Mode
-#define MPI_COM_DATA_INDX 2      // Data
+#define MPI_MODE_INITIALIZING 0
+#define MPI_MODE_DATA_DISTRIBUTION 1
+#define MPI_MODE_KNN_COLLECTION_DIST 2
+#define MPI_MODE_KNN_COLLECTION_INDX 3
+#define MPI_MODE_KNN_COLLECTION_M 7
+#define MPI_MODE_CORPUS_DISTRIBUTION 6
+#define MPI_MODE_CALCULATING 4
+#define MPI_MODE_COLLECTING 5
 
 
-// MPI Statuses
-#define MPI_STATUS_INITIATING 0 // Initiating Matrices
-#define MPI_STATUS_MEASURING 1  // Gathering
-#define MPI_STATUS_SEARCHING 2  
-#define MPI_STATUS_GATHERING 3
+int node_id_tmp=-1;
 
 
 
-knnresult distrAllkNN(double * X, double * Y, int n, int m, int d, int k)
+int _v1_n_per_node(int node_id, int cluster_size, int n)
 {
 
-
-    /***************************************
-     * Set up Environment Parameters
-     * and debugging modes
-     ***************************************/
-
-    bool _knn_print = false;
-    bool _dist_print = false;
-    bool _timer_print = false;
+    int ret = (n/cluster_size);
+    if(node_id == cluster_size-1)
+    {
+        return ret + n%cluster_size;
+    }
+    return ret;
+}
 
 
-    char *s_tmp;
 
-    s_tmp = getenv( _KNN_PRINT_VAR );
-    _knn_print = (s_tmp!=NULL)? ( strchr(s_tmp,'1')!=NULL? true : false  ) : false;
-    // free(s_tmp);
+void _v1_compare_knnresult(knnresult* res, knnresult* res_)
+{
 
-    s_tmp = getenv( _DIST_PRINT_VAR );
-    _dist_print = (s_tmp!=NULL)? ( strchr(s_tmp,'1')!=NULL? true : false  ) : false;
-    // free(s_tmp);
+    (res)->k = (res_)->k;
+    (res)->m = (res_)->m;
 
-    s_tmp = getenv( _TIMER_PRINT_VAR );
-    _timer_print = (s_tmp!=NULL)? ( strchr(s_tmp,'1')!=NULL? true : false  ) : false;
 
-    /*************************************/
+    // TODO: result comparison
+}
 
+
+/**
+ * Usage:
+ * 
+ * for non blocking:
+ * _v1_send_data_nb(MPI_MODE_DISTRIBUTING, X, n, node_send, mpi_request);
+ * _v1_send_data_wait(mpi_request); // call later
+ * 
+ * for blocking:
+ * _v1_send_data_b(...)
+ **/
+
+
+void _v1_send_data_nb_t(int code, double* Y, int m, int partner, MPI_Datatype type, MPI_Request request[])
+{
+
+    if(DEBUG_MPI)
+        printf("%d Sending to %d [%d]\n", node_id_tmp, partner, m);
+
+    MPI_Isend(
+        Y,         // *Buffer
+        m,          // Count
+        type,     // Type
+        partner,   // Destination
+        code,    // Tag
+        MPI_COMM_WORLD,   // Comm
+        &(request[1])   // *Request
+    );
+    
+}
+
+void _v1_receive_data_nb_t(int code, double* Z, int m, int partner, MPI_Datatype type, MPI_Request request[])
+{
+
+    if(DEBUG_MPI)
+        printf("%d Receiving from %d [%d]\n", node_id_tmp, partner, m);
+
+    MPI_Irecv(
+        Z,         // *Buffer
+        m,          // Count
+        type,     // Type
+        partner,   // Destination
+        code,    // Tag
+        MPI_COMM_WORLD,   // Comm
+        &(request[0])   // *Request
+    );
+
+}
+
+// With Default DataType: Double
+void _v1_send_data_nb(int code, double* Y, int m, int partner, MPI_Request request[])
+{
+
+    _v1_send_data_nb_t(code, Y, m, partner, MPI_DOUBLE, request);
+    
+}
+
+// With Default DataType: Double
+void _v1_receive_data_nb(int code, double* Z, int m, int partner, MPI_Request request[])
+{
+
+    _v1_receive_data_nb_t(code, Z, m, partner, MPI_DOUBLE, request);
+
+}
+
+void _v1_send_data_wait(MPI_Request request[])
+{
+
+    MPI_Status status;
+    MPI_Wait(&(request[1]), &status);
+    
+}
+
+void _v1_receive_data_wait(MPI_Request request[])
+{
+
+    MPI_Status status;
+    MPI_Wait(&(request[0]), &status);
+
+}
+
+void _v1_send_data_b(int code, double* Y, int m, int partner, MPI_Request request[])
+{
+
+    _v1_send_data_nb(code, Y, m, partner, request);
+     _v1_send_data_wait(request);
+    
+}
+
+void _v1_receive_data_b(int code, double* Z, int m, int partner, MPI_Request request[])
+{
+
+    _v1_receive_data_nb(code, Z, m, partner, request);
+    _v1_receive_data_wait(request);
+
+}
+
+
+void _v1_send_data_b_t(int code, double* Y, int m, int partner, MPI_Datatype type, MPI_Request request[])
+{
+
+    _v1_send_data_nb_t(code, Y, m, partner, type, request);
+     _v1_send_data_wait(request);
+    
+}
+
+void _v1_receive_data_b_t(int code, double* Z, int m, int partner, MPI_Datatype type, MPI_Request request[])
+{
+
+    _v1_receive_data_nb_t(code, Z, m, partner, type, request);
+    _v1_receive_data_wait(request);
+
+}
+
+
+
+
+
+
+
+
+knnresult distrAllkNN(double * X, int n_all, int d, int k)
+{
 
     // Start Timer
     time_t t;
@@ -60,541 +173,405 @@ knnresult distrAllkNN(double * X, double * Y, int n, int m, int d, int k)
     clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
 
+    // Set V0 in V1 mode
+    _MODE_V1_RUNNING = true;
+
+
     // Initiate MPI
     MPI_Init(NULL, NULL);
 
     // Get Cluster Size
     int cluster_size;
-    MPI_Comm_size(MPI_COMM_WORLD, &size_Of_Cluster);
+    MPI_Comm_size(MPI_COMM_WORLD, &cluster_size);
 
-    // Get Process ID
-    int mpi_id;
-    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_id);
-
-    
-
-    
+    // Get Node ID
+    int node_id;
+    MPI_Comm_rank(MPI_COMM_WORLD, &node_id);
 
 
-
-
-    // MPI_Recv(void *buff,
-    //                int count,
-    //                MPI_Datatype type,
-    //                int source,
-    //                int tag,
-    //                int comm,
-    //                MPI_Request *request )
-
-    // MPI_Isend(void *buff,
-    //                int count,
-    //                MPI_Datatype type,
-    //                int dest,
-    //                int tag,
-    //                int comm,
-    //                MPI_Request *request )
-
-    
-
-
-    // double * XT;    // X Transpose
-    // mat_transpose(&X, &XT, n, d);
-
-    // double * YT;    // Y Transpose
-    // mat_transpose(&Y, &YT, m, d);
-
-
-    /**************************
-     *       X .* X
-     *        (NxD)
-     **************************/
-    double * X_X = (double *) malloc(n * d *sizeof(double));
-    if(X_X==NULL)
+    if(cluster_size<2)
     {
-        printf("Failed allocating memory [X_X] (knn_v0).\n");
+        printf("There is no cluster!\n");
         exit(EXIT_FAILURE);
     }
 
-    cilk_for(int i=0; i<n*d; i++)
-    {
-        X_X[i] = X[i] * X[i];
-    }
-    
 
-
-    /***************************************
-     *           D1   (Nx1)
-     * for i=1:n
-     *   temp = 0;
-     *     for j=1:d
-     *       temp = temp + XX(i,j);
-     *   D1(i,1) = temp; 
-     **************************************/
-    double * D1 = malloc(n*sizeof(double));
-    if(D1==NULL)
+    // Who I receive from 
+    int node_receive = node_id-1;
+    if(node_receive<0)
     {
-        printf("Failed allocating memory [D1] (knn_v0).\n");
-        exit(EXIT_FAILURE);
-    }
-    cilk_for(int i=0; i<n; i++)
-    {
-        double d_tmp = 0.0;
-        for(int j=0; j<d; j++)
-        {
-            d_tmp += (double) X_X[d*i+j];  // tmp += X(i,j)
-        }
-        D1[i] = d_tmp;
+        node_receive = cluster_size-1;
     }
 
-    // X_X is not needed any more
-    free(X_X);
+    // Who I send to
+    int node_send = node_id+1;
+    if(node_send >= cluster_size)
+    {
+        node_send = 0;
+    }
 
 
-    // printf("--- D1 ---\n");
-    // for(int i=0; i<n; i++){
-    //     printf("%d ", (int)D1[i]);
-    // }
-    // printf("\n\n");
+    node_id_tmp = node_id;
 
 
+    // Allocate D
+    int alloc_size = (n_all/cluster_size)+cluster_size;
+    double* Y = (double*) malloc(alloc_size*sizeof(double));
+    double* Z = (double*) malloc(alloc_size*sizeof(double));
+    int n = _v1_n_per_node(node_id, cluster_size, n_all);
 
-    /******************************
-     *       D2 = X * Y.'   
-     *          (NxM)
-     ******************************/
+    // Create an array with results
+    // that fits the whole cluster's
+    // Query points.
+    knnresult res[cluster_size];
 
-    double * D2 = malloc(m*n*sizeof(double));
 
-    
     /**
-     * dgemm:  C = α . A x B + β . C
-     * Transpose: CblasNoTrans / CblasTrans
+     * Construct kNN result struct
+     * for OMPI
      **/
-    // NxD * DxM
-    cblas_dgemm(
-        CblasRowMajor,  // Store Order
-        CblasNoTrans,   // A Transpose
-        CblasTrans,     // B Transpose
-        n, m, d,        // M, N, K of MxK * KxN
-        -2.0,           // alpha
-        X,              // A matrix
-        d,              // K
-        Y,              // B matrix
-        d,              // N
-        0,              // beta
-        D2,             // C matrix
-        m               // N
-    );
+    // const int nitems = 4;
+    // int blocklengths[4] = {1, 1, 1, 1};
+    // MPI_Datatype types[4] = {MPI_DOUBLE, MPI_INT, MPI_INT, MPI_INT};
+    // MPI_Datatype MPI_KNNRESULT;
+    // MPI_Aint     offsets[4];
+    // offsets[0] = offsetof(knnresult, nidx);
+    // offsets[1] = offsetof(knnresult, ndist);
+    // offsets[2] = offsetof(knnresult, m);
+    // offsets[3] = offsetof(knnresult, k);
+
+    // Request array for receive and send
+    MPI_Request mpi_request[2];
 
 
-    // printf("--- D2 ---\n");
 
-    // for(int i=0; i<n; i++)
-    // {
-    //     // printf("%d: ( ", i);
-    //     for(int j=0; j<m; j++)
-    //     {
+    // Nodes other than the main, should
+    // receive the X matrix first.
+    // Node 0 already has it.
+    if(node_id>0)
+        _v1_receive_data_b(MPI_MODE_DATA_DISTRIBUTION, X, n_all, node_receive, mpi_request);
 
-    //         printf("%d ", (int)mat_read_ij(&D2, i, j, m) );
 
-    //     }
+    // All nodes, except the last one, 
+    // should send the matrix to the
+    // next one.
+    if(node_id != cluster_size-1)
+        _v1_send_data_b(MPI_MODE_DATA_DISTRIBUTION, X, n_all, node_send, mpi_request);
+    
 
-    //     printf("; \n");
+    // Hold on to local data only
+    memcpy(&X[0], &X[ (n_all/cluster_size)*node_id ], _v1_n_per_node(node_id, cluster_size, n_all) *sizeof(double));
+
+    // Xopy X to Y
+    memcpy(&Y[0], &X[0], _v1_n_per_node(node_id, cluster_size, n_all) *sizeof(double));
+
+
+    if(node_id==0)
+    {
+        for(int i=0; i<cluster_size; i++)
+        {
+            printf("node %d n: %d\n", i, _v1_n_per_node(i, cluster_size, n_all));
+        }
+    }
+
+    // Which part of Query
+    // Y am I receiving now
+    int working_batch_id = node_id;
+
+    int m;
+
+
+    // For each batch of Y query points
+    for(int i_rec=0; i_rec<cluster_size; i_rec++)
+    {
         
-    // }
-
-    // printf("\n");
-
-
-
-
-    /***************************
-     *     D2 <-- D12  (NxM)
-     *      (Nx1) + (NxM)
-     ***************************/
-
-    cilk_for(int i=0; i<n; i++)
-    {
-        double d_tmp = D1[i];
-        cilk_for(int j=0; j<m; j++)
-        {
-            D2[i*m +j] += d_tmp;    // D2(i,j) += D1(i,1)
-        }
-    }
-
-
-
-    // D1 can be freed here
-    free(D1);
-
-    // D12 is ready (in D2)
-
-
-    /**************************
-     *       (Y .* Y).'
-     *        (DxM)
-     **************************/
-
-    double * Y_Y = malloc(m*d* sizeof(double));
-    if(Y_Y==NULL)
-    {
-        printf("Failed allocating memory [Y_Y] (knn_v0).\n");
-        exit(EXIT_FAILURE);
-    }
-    cilk_for(int i=0; i<m*d; i++)
-    {
-        Y_Y[i] = Y[i] * Y[i];
-    }
-
-
-    // double * Y_Y_T = malloc(d*m*sizeof(double));
-    // if(Y_Y_T==NULL)
-    // {
-    //     printf("Failed allocating memory [Y_Y_T] (knn_v0).\n");
-    //     exit(EXIT_FAILURE);
-    // }
-
-    // mat_transpose(&Y_Y, &Y_Y_T, m, d);
-
-    // Y_Y from D3 is not needed
-    // free(Y_Y);
-
-
-    /***************************************
-     *           D3   (1xM)
-     *  for i=1:m
-     *    temp = 0;
-     *    for j=1:d
-     *      temp = temp + YY(j,i);
-     *    D3(1,i) = temp; 
-     **************************************/
-
-    double * D3 = malloc(m* sizeof(double));
-    if(D3==NULL)
-    {
-        printf("Failed allocating memory [D3] (knn_v0).\n");
-        exit(EXIT_FAILURE);
-    }
-    
-    /**
-     * Instead of doing an addition for
-     * each row, we will be doing the same 
-     * for each column. (~10% Improvement)
-     **/
-    cilk_for(int i=0; i<m; i++)
-    {
-        double d_tmp = 0.0;
-        for(int j=0; j<d; j++)
-        {
-            d_tmp += (double) Y_Y[i*d+j];
-        }
-        D3[i] = d_tmp;
-    }
-
-
-    // printf("--- D3 ---\n");
-    // for(int i=0; i<m; i++){
-    //     printf("%d ", (int)D3[i]);
-    // }
-    // printf("\n\n");
-
-    free(Y_Y);
-
-
-    /***************************
-     *     D2 <-- D23  (NxM)
-     *      (1xM) + (NxM)
-     ***************************/
-    double * D2T = (double *) malloc(n*m*sizeof(double));
-    mat_transpose(&D2, &D2T, n, m);
-    
-    free(D2);
-
-    /** 
-     * Instead of summing app for every
-     * row on the Y_Y Transposed, we
-     * will be adding to each column
-     * of the original Y_Y.
-     **/
-    cilk_for(int i=0; i<m; i++)
-    {
-        double d_tmp = D3[i];
-        cilk_for(int j=0; j<n; j++)
-        {
-            D2T[i*n + j] += d_tmp;
-        }
-    }
-
-
-    // Clean Up
-    free(D3);
-
-
-
-    /*************************
-     *     sqrt(D2)   (NxM)
-     *************************/
-    cilk_for(int i=0; i<n*m; i++)
-    {
-        D2T[i] = (double)sqrt(D2T[i]);
-    }
-
-
-
-    if(_dist_print)
-    {
-        printf("--- C ---\n");
-
-        for(int i=0; i<n; i++)
-        {
-            for(int j=0; j<m; j++)
-            {
-
-                printf("%f ", (double) mat_read_ij(&D2T, j, i, n) );
-
-            }
-
-            printf("; \n");
         
-        }
+        if(DEBUG_A==1)
+            printf("Node %d working on batch %d\n", node_id, working_batch_id);
 
-        printf("\n");
+
+        
+        
+        // Wait for the last message
+        // to finish receiving.
+        if(working_batch_id!=node_id)
+            _v1_send_data_wait(mpi_request);
+
+
+        m = _v1_n_per_node(working_batch_id, cluster_size, n_all);
+
+
+        // Send Current Working Batch
+        _v1_send_data_nb(MPI_MODE_CORPUS_DISTRIBUTION, Y, m, node_send, mpi_request);
+        
+
+        // wte: What To Expect
+        // What data to expect, depending
+        // on the next batch id
+        int wte = working_batch_id-1;
+        if(wte<0)
+            wte = cluster_size -1;
+        wte = _v1_n_per_node(wte, cluster_size, n_all);
+
+        // Receive Next batch
+        _v1_receive_data_nb(MPI_MODE_CORPUS_DISTRIBUTION, Z, wte, node_receive, mpi_request);
+
+
+
+        res[working_batch_id] = kNN(X, Y, n, m, d, k);
+
+
+        /**
+         * Update current Batch ID.
+         * This show what node the incoming
+         * data Z comes from. It goes 
+         * anti-clockwise by 1 for each loop.
+         **/
+        working_batch_id-- ;
+
+        // Make sure it does a cycle
+        if(working_batch_id<0)
+            working_batch_id = cluster_size-1 ;
+
+
+        m = _v1_n_per_node(working_batch_id, cluster_size, n_all);
+
+
+        // wait for sending to finish,
+        // so we can change the buffer Y
+        _v1_send_data_wait(mpi_request);
+
+        // Copy the incoming batch to
+        // the current batch.
+        // In the next loop, we will send 
+        // and work on this one concurrently,
+        // while receiving a new one in Z.
+        memcpy(Y, Z, m * sizeof(double));
+
+
+        
+
+        // }
+        // else
+        // {
+        //     // Non-Blocking Receive & Send
+        //     _v1_receive_query( &Z );
+        //     _v1_send_query( Y );
+
+        //     // This is non blocking
+
+        // }
+
+        
     }
 
 
-    /**
-     * C is ready
-     **/
 
-	knnresult res;
-	res.k = k;
-	res.m = m;
-	res.nidx  = (int *)   malloc(m*k*sizeof(int));
-	res.ndist = (double *)malloc(m*k*sizeof(double));
-	
-	// double * CT = malloc(n*m*sizeof(double));
-    // if(CT==NULL)
-    // {
-    //     printf("Failed allocating memory [CT] (knn_v0).\n");
-    //     exit(EXIT_FAILURE);
-    // }
+    // Offset results based on node id
+    // TODO: ^
 
-	// mat_transpose(&D2, &CT, n, m);
-    // free(D2);
+
+    // Free Up Memory
+    // free(X);
+    // free(Y);
+    // free(Z);
+
+    _v1_send_data_wait(mpi_request);
+    _v1_receive_data_wait(mpi_request);
+    printf("--------------\n");
+
+    knnresult res_buff[cluster_size];
+
 
 
     /**
-     * For each query point, spawn a 
-     * thread and execute the knn search.
-     * The results are returned directly 
-     * into the correct places within the 
-     * resulting matrices.
+     * Data Collection:
+     * 
+     * Worker nodes should receive the
+     * kNN result of the previous node
+     * (except node=1, doesn't receive)
+     * and compare/update with the local
+     * results. Next, the receiving nodes
+     * should send the result to the next
+     * node in the ring.
+     * 
+     * Master node only receives and compares.
+     * All worker nodes have finished
+     * after they have sent their kNN
+     * results.
+     * 
+     * The result tranfered is a single 
+     * kNN result, therefore a loop is
+     * used to account for all batches of
+     * Query points.
      **/
-	cilk_for(int mm=0; mm<m; mm++)
-	{
-		aux_sort_idx(&D2T, &res.nidx, &res.ndist, n, m, mm, k);
-	}
+
+
+    // Nodes that receive
+    if(node_id!=1)
+    {
+
+        // For each batch
+        for(int i=0; i<cluster_size; i++)
+        {
+
+            // TODO: Remove m receiving,
+            // We already know m is n_all/cluster_size.
+            // The last one will have locally the same
+            // m plus n_all%cluster_size.
+            
+            int m_buff[1];
+            // Receive M
+            _v1_receive_data_b_t(
+                MPI_MODE_KNN_COLLECTION_M, 
+                m_buff, 
+                1, 
+                node_receive, 
+                MPI_INT, 
+                mpi_request
+            );
+
+            printf("[%d] batch: %d, m: %d\n", node_id, i, m_buff[0]);
+
+            if(m_buff[0] < 0)
+            {
+                printf("M received from node %d on node %d was illegal!\n");
+                exit(EXIT_FAILURE);
+            }
+
+            // TODO: Maybe execute 2 concurrent receives
+                printf("indx\n");
+            int * indx_buff = (int*)malloc(m_buff[0]*sizeof(int));
+            _v1_receive_data_b_t(
+                MPI_MODE_KNN_COLLECTION_INDX, 
+                indx_buff,
+                m_buff[0],
+                node_receive,
+                MPI_INT,
+                mpi_request
+            );
+
+            double * dist_buff = (double*)malloc(m_buff[0]*sizeof(double));
+            _v1_receive_data_b_t(
+                MPI_MODE_KNN_COLLECTION_DIST, 
+                dist_buff,
+                m_buff[0],
+                node_receive,
+                MPI_DOUBLE,
+                mpi_request
+            );
+
+            cilk_sync;
+            
+            knnresult res_tmp;
+            res_tmp.ndist = dist_buff;
+            res_tmp.nidx  = indx_buff;
+            res_tmp.m     = m_buff[0];
+            res_tmp.k     = k;
+
+            cilk_spawn _v1_compare_knnresult(&(res[i]), &(res_tmp));
+
+        }
+            
+    }//end: if(node_id>1)
+        
+    // nodes that send
+    if(node_id!=0)
+    {
+        // TODO: Move sending right after calculation
+        // to make it async.
+
+        // Send result to next node
+        for(int i=0; i<cluster_size; i++)
+        {
+            int m_buff[] = {res[i].m};
+            printf("send m: %d\n", res[i].m);
+            _v1_send_data_b_t(
+                MPI_MODE_KNN_COLLECTION_M, 
+                m_buff,
+                1,
+                node_send,
+                MPI_INT,
+                mpi_request
+            );
+            _v1_send_data_b_t(
+                MPI_MODE_KNN_COLLECTION_INDX, 
+                res[i].nidx,
+                res[i].m,
+                node_send,
+                MPI_INT,
+                mpi_request
+            );
+            _v1_send_data_b_t(
+                MPI_MODE_KNN_COLLECTION_DIST, 
+                res[i].ndist,
+                res[i].m,
+                node_send,
+                MPI_DOUBLE,
+                mpi_request
+            );
+        }
+    }
+        
+
+
+    // Nodes other than master have finished
+    if(node_id>0)
+    {
+        MPI_Finalize();
+        exit(EXIT_SUCCESS);
+    }
+
+        // _v1_send_data_nb(MPI_MODE_KNN_DISTRIBUTION_DIST, res, k*cluster_size, node_send, mpi_request);
+
+        // for(int i=cluster_size-node_id; i<cluster_size-1; i++)
+        // {
+
+        //     // receive frrom previous
+        //     _v1_receive_data_nb(MPI_MODE_KNN_DISTRIBUTION_DIST, res_buff, k*cluster_size, node_send, mpi_request);
+            
+        //     // Wait for "res" buffer to be freed
+        //     _v1_send_data_wait(mpi_request);
+
+        //     // Copy receive buffer to "res"
+        //     memcpy(&res[0], &res_buff[0], cluster_size*sizeof(knnresult));
+
+        //     // send "res" to next
+        //     _v1_send_data_nb(MPI_MODE_KNN_DISTRIBUTION_DIST, res, k*cluster_size, node_send, mpi_request);
+        
+        // }
+   
     
 
-    // free(CT);
+    // // Calculate the result for
+    // // each owns' query points.
+    // res[node_id] = kNN( X, // Corpus
+    //                     X, // Query
+    //                     n, // Corpus Size
+    //                     n, // Query Size
+    //                     d, // Dimensions
+    //                     k  // Neighbors
+    // );
 
 
 
-    /**
-     * Result
-     **/
-    if(_knn_print==1)
-    {
-        printf("\n--- RES ---");
-        for(int i=0; i<m; i++)
-        {
-            printf("\nindx: ", m);
-            for(int j=0; j<k; j++)
-            {
-                printf("%d, ", (int) *(res.nidx+i*k+j));
-            }
-            printf("\ndist: ");
-            for(int j=0; j<k; j++)
-            {
-                printf("%f, ", (double) *(res.ndist+i*k+j));
-            }
-
-        }
-    }
 
 
+    MPI_Finalize();
 
     // Stop Timer
     clock_gettime(CLOCK_MONOTONIC_RAW, &end);
     float delta_us = (float) ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000)/ (1000000);
     
-    if(_timer_print)
+
+        
+    if(_TIMER_PRINT)
     {
-        printf(" > V0 took %f s\n", delta_us);
+        printf(" > V1 took %f s\n", delta_us);
     }
 
+    return res[0];
 
-
-
-    // Finalize MPI
-    MPI_Finalize();
-
-    return res;
 }
-
-
-
-
-
-// /** 
-//  * Auxiliary
-//  **/
-// int aux_sort_idx(double** C, int** nidx, double** ndist, int N, int M, int m, int k)
-// {
-// 	// M: all query points
-// 	// m: current query point
-// 	// N: all corpus points
-// 	// k: neighbors
-// 	// C: distances in m*n format (Transposed)
-// 	// nidx: indexes m*k
-// 	// ndist: distances m*k
-	
-// 	// Fill the distances and indexes
-// 	double * distm 	= (double *) malloc(N*sizeof(double));
-// 	int * idxm 		= (int *)    malloc(N*sizeof(int));
-
-// 	for(int i=0; i<N; i++)
-// 	{
-// 		distm[i] = (double) *((*C)+ N * m + i);
-// 		idxm[i] = (int) i;
-// 	}
-	
-// 	aux_mergeSort(&distm, &idxm, N);
-
-//     for(int i=0; i<k; i++)
-//     {
-//         *( *ndist + k*m + i ) = (double) distm[i];
-//         *( *nidx  + k*m + i ) = (int)     idxm[i];
-//     }
-
-// 	return 0;
-	
-// }
-
-
-
-
-
-
-
-// /*************
-//  *  Sorting 
-//  *************/
-
-
-// // in-place merge sort
-// void aux_mergeSort(double ** _I, int ** _J, int len)
-// {
-//     if (len <= 1)
-//     {
-//         return;
-//     }
-
-
-//     double *left_I = (double *) cilk_spawn aux_slice_d(_I, 0, len / 2 + 1);
-//     double *right_I = (double *)cilk_spawn aux_slice_d(_I, len / 2, len);
-
-//     int *left_J = (int *) cilk_spawn aux_slice_i(_J, 0, len / 2 + 1);
-//     int *right_J = (int *) cilk_spawn aux_slice_i(_J, len / 2, len);
-
-//     cilk_sync;
-
-
-//     cilk_spawn aux_mergeSort(&left_I, &left_J, len / 2);
-//     cilk_spawn aux_mergeSort(&right_I, &right_J, len - (len / 2));
-
-//     cilk_sync;
-
-//     aux_merge(_I, _J, &left_I, &left_J, &right_I, &right_J, len / 2, len - (len / 2));
-
-// }
-
-// int * aux_slice_i(int **arr, int start, int end)
-// {
-//     int *result = (int *) malloc((end - start) * sizeof(int));
-//     if(result==NULL)
-//     {
-//         printf("Failed Allocating memory (aux_slice_i).\n");
-//     }
-//     int i;
-//     for (i = start; i < end; i++)
-//     {
-//         result[i - start] = (int) *(*arr +i);
-//     }
-//     return result;
-// }
-
-// double * aux_slice_d(double **arr, int start, int end)
-// {
-//     double *result = (double *) malloc((end - start) * sizeof(double));
-//     if(result==NULL)
-//     {
-//         printf("Failed Allocating memory (aux_slice_d).\n");
-//     }
-//     int i;
-//     for (i = start; i < end; i++)
-//     {
-//         result[i - start] = (double) *(*arr +i);
-//     }
-//     return result;
-// }
-
-
-// void aux_merge( double ** _I, int ** _J, 
-//     double ** left_I, int ** left_J, 
-//     double ** right_I, int ** right_J, 
-//     int leftLen, int rightLen)
-// {
-
-//     int i, j;
-
-//     i = 0;
-//     j = 0;
-//     while(i < leftLen && j < rightLen)
-//     {
-//         if ( *(*left_I +i) < *(*right_I +j) ) 
-        
-//         {
-//             *(*_I + i + j) = *(*left_I +i);
-//             *(*_J + i + j) = *(*left_J+ i);
-//             i++;
-//         }
-//         else
-//         {
-//             *(*_I +i + j) = *(*right_I + j);
-//             *(*_J+ i + j) = *(*right_J + j);
-//             j++;
-//         }
-
-//     }
-
-//     for(; i < leftLen; i++)
-//     {
-//         *(*_I +i + j) = *(*left_I + i);
-//         *(*_J +i + j) = *(*left_J + i);
-//     }
-//     for(; j < rightLen; j++)
-//     {
-// 		*(*_I +i + j) = *(*right_I +j);
-//         *(*_J +i + j) = *(*right_J +j);
-//     }
-
-//     free(*left_I);
-//     free(*right_I);
-//     free(*left_J);
-//     free(*right_J);
-
-// }
-
 
 
