@@ -1,9 +1,5 @@
 #include "knn_v0.h"
-
-
-#define _DIST_PRINT_VAR "DIST_PRINT"
-#define _KNN_PRINT_VAR "KNN_PRINT"
-#define _TIMER_PRINT_VAR "TIMER_PRINT"
+#include "auxlib.h"
 
 
 knnresult kNN(double * X, double * Y, int n, int m, int d, int k)
@@ -11,29 +7,19 @@ knnresult kNN(double * X, double * Y, int n, int m, int d, int k)
 
 
     /***************************************
-     * Set up Environment Parameters
-     * and debugging modes
+     * Set up Environment
      ***************************************/
 
-    bool _knn_print = false;
-    bool _dist_print = false;
-    bool _timer_print = false;
+    // // If V0 is in V1 mode, overwrite settings
+    // if(_MODE_V1_RUNNING)
+    // {
+    //     _TIMER_PRINT = false;
+    // }
+
+    /***************************************/
 
 
-    char *s_tmp;
 
-    s_tmp = getenv( _KNN_PRINT_VAR );
-    _knn_print = (s_tmp!=NULL)? ( strchr(s_tmp,'1')!=NULL? true : false  ) : false;
-    // free(s_tmp);
-
-    s_tmp = getenv( _DIST_PRINT_VAR );
-    _dist_print = (s_tmp!=NULL)? ( strchr(s_tmp,'1')!=NULL? true : false  ) : false;
-    // free(s_tmp);
-
-    s_tmp = getenv( _TIMER_PRINT_VAR );
-    _timer_print = (s_tmp!=NULL)? ( strchr(s_tmp,'1')!=NULL? true : false  ) : false;
-
-    /*************************************/
     
 
     // Start Timer
@@ -287,7 +273,7 @@ knnresult kNN(double * X, double * Y, int n, int m, int d, int k)
 
 
 
-    if(_dist_print)
+    if(_DIST_PRINT)
     {
         printf("--- C ---\n");
 
@@ -345,11 +331,14 @@ knnresult kNN(double * X, double * Y, int n, int m, int d, int k)
     // free(CT);
 
 
+    if(!_MODE_V1_RUNNING)
+        free(D2T);
+
 
     /**
      * Result
      **/
-    if(_knn_print==1)
+    if(_KNN_PRINT)
     {
         printf("\n--- RES ---");
         for(int i=0; i<m; i++)
@@ -374,7 +363,7 @@ knnresult kNN(double * X, double * Y, int n, int m, int d, int k)
     clock_gettime(CLOCK_MONOTONIC_RAW, &end);
     float delta_us = (float) ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000)/ (1000000);
     
-    if(_timer_print)
+    if(_TIMER_PRINT&&!_MODE_V1_RUNNING)
     {
         printf(" > V0 took %f s\n", delta_us);
     }

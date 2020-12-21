@@ -10,7 +10,7 @@ export CILK_NWORKERS=8
 export KNN_PRINT=0
 export DIST_PRINT=0
 export TIMER_PRINT=1
-# export MPI_NWORKERS=1
+#export MPI_NWORKERS=1
 export test=1
 
-clear && make clean && make all && clear && mpirun -np $MPI_NWORKERS main.o $1
+clear && make clean && make all && clear && mpirun -np 3 main.o $1

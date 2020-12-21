@@ -1,6 +1,15 @@
 #include "auxlib.h"
 
 
+extern bool _MODE_V1_RUNNING = false;
+
+extern bool _KNN_PRINT = false;
+
+extern bool _DIST_PRINT = false;
+
+extern bool _TIMER_PRINT = true;
+
+
 
 /** 
  * Auxiliary
@@ -36,9 +45,6 @@ int aux_sort_idx(double** C, int** nidx, double** ndist, int N, int M, int m, in
 	return 0;
 	
 }
-
-
-
 
 
 

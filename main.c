@@ -7,6 +7,7 @@
 #include "knn_v0.h"
 #include "knn_v1.h"
 #include <mpi.h>
+#include "auxlib.h"
 
 
 
@@ -37,6 +38,29 @@ int main(int argc, char** argv)
     int _k = 5;
 
     bool _rand = false;
+
+
+
+    /***************************************
+     * Set up Environment Parameters
+     * and debugging modes
+     ***************************************/
+
+    char *s_tmp;
+
+    s_tmp = getenv( _KNN_PRINT_VAR );
+    _KNN_PRINT = (s_tmp!=NULL)? ( strchr(s_tmp,'1')!=NULL? true : false  ) : false;
+    // free(s_tmp);
+
+    s_tmp = getenv( _DIST_PRINT_VAR );
+    _DIST_PRINT = (s_tmp!=NULL)? ( strchr(s_tmp,'1')!=NULL? true : false  ) : false;
+    // free(s_tmp);
+
+    s_tmp = getenv( _TIMER_PRINT_VAR );
+    _TIMER_PRINT = (s_tmp!=NULL)? ( strchr(s_tmp,'1')!=NULL? true : false  ) : false;
+
+    /***************************************/
+
 
 
 
@@ -385,7 +409,7 @@ int main(int argc, char** argv)
         }
 
         if(strcmp(argv[i],"-v1")==0){
-            knn_v1( X , Y , n , m , d , k );
+            distrAllkNN( X , n , d , k );
         }
 
         // if(strcmp(argv[i],"-coorow")==0){

@@ -4,6 +4,65 @@
 
 #include <stdlib.h>
 #include <cilk/cilk.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <time.h>
+#include <string.h>
+#include "mat.h"
+#include <cilk/cilk.h>
+
+
+
+/**
+ * Environment variable name for
+ * Calculated distance matrix prints.
+ **/
+#define _DIST_PRINT_VAR "DIST_PRINT"
+
+/**
+ * Environment variable name for
+ * kNN neighbor print.
+ **/
+#define _KNN_PRINT_VAR "KNN_PRINT"
+
+/**
+ * Environment variable name for
+ * timing info.
+ **/
+#define _TIMER_PRINT_VAR "TIMER_PRINT"
+
+
+#define min(x,y) (((x) < (y)) ? (x) : (y))
+
+#define max(x,y) (((x) > (y)) ? (x) : (y))
+
+
+
+/**
+ * True if V1 is running.
+ * Default: False.
+ **/
+extern bool _MODE_V1_RUNNING ;
+
+/**
+ * Print kNN Neighbors result.
+ * Default: False.
+ **/
+extern bool _KNN_PRINT ;
+
+/**
+ * Print calculated distance matrix.
+ * Default: False.
+ **/
+extern bool _DIST_PRINT ;
+
+/**
+ * Print timing information.
+ * Default: true.
+ **/
+extern bool _TIMER_PRINT ;
 
 
 
@@ -17,10 +76,6 @@ typedef struct knnresult{
   int      k;       //!< Number of nearest neighbors            [scalar]
 } knnresult;
 
-
-#define min(x,y) (((x) < (y)) ? (x) : (y))
-
-#define max(x,y) (((x) > (y)) ? (x) : (y))
 
 
 /**
