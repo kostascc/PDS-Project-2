@@ -19,9 +19,6 @@ knnresult kNN(double * X, double * Y, int n, int m, int d, int k)
     /***************************************/
 
 
-
-    
-
     // Start Timer
     time_t t;
     srand((unsigned) time(&t));
@@ -282,7 +279,7 @@ knnresult kNN(double * X, double * Y, int n, int m, int d, int k)
             for(int j=0; j<m; j++)
             {
 
-                printf("%f ", (double) mat_read_ij(&D2T, j, i, n) );
+                printf("%.2f ", (double) mat_read_ij(&D2T, j, i, n) );
 
             }
 
@@ -338,23 +335,9 @@ knnresult kNN(double * X, double * Y, int n, int m, int d, int k)
     /**
      * Result
      **/
-    if(_KNN_PRINT)
+    if(_KNN_PRINT&&!_MODE_V1_RUNNING)
     {
-        printf("\n--- RES ---");
-        for(int i=0; i<m; i++)
-        {
-            printf("\nindx: ", m);
-            for(int j=0; j<k; j++)
-            {
-                printf("%d, ", (int) *(res.nidx+i*k+j));
-            }
-            printf("\ndist: ");
-            for(int j=0; j<k; j++)
-            {
-                printf("%f, ", (double) *(res.ndist+i*k+j));
-            }
-
-        }
+        print_res(res);
     }
 
 

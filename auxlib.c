@@ -159,3 +159,24 @@ void aux_merge( double ** _I, int ** _J,
 }
 
 
+
+void print_res(knnresult knn)
+{
+        for(int i=0; i<knn.m; i++)
+        {
+            printf("%d\nindx: ", i);
+            for(int j=0; j<knn.k; j++)
+            {
+                printf("%d, ", knn.nidx[i*knn.k+j]);
+            }
+            printf("\ndist: ");
+            for(int j=0; j<knn.k; j++)
+            {
+                printf("%f, ", (double) (knn.ndist[i*knn.k+j]));
+            }
+
+            printf("\n");
+        }
+
+}
+

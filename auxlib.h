@@ -109,6 +109,9 @@ void aux_merge ( double** _I, int ** _J, double ** left_I, int ** left_J, double
  **/
 void aux_mergeSort( double ** _I, int ** _J, int len );
 
-
+/**
+ * Print knn result
+ **/
+void print_res(knnresult knn);
 
 #endif
