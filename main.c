@@ -14,11 +14,67 @@
 // Show Created or imported
 // matrices in stdout
 #define MATRIX_PRINT 0
+#define RAND_SEED 0
+#define MAX_VECTOR 40.0
+#define V0_USE_X_AS_Y 1
 
 
 
 int main(int argc, char** argv)
 {
+
+
+//      /**
+//      * Try MPI Big Data
+//      **/
+
+// // Initiate MPI
+//     MPI_Init(NULL, NULL);
+
+//     // Get Cluster Size
+//     int cluster_size;
+//     MPI_Comm_size(MPI_COMM_WORLD, &cluster_size);
+
+//     // Get Node ID
+//     int node_id;
+//     MPI_Comm_rank(MPI_COMM_WORLD, &node_id);
+
+//         MPI_Request mpi_request[2];
+
+// // Who I receive from 
+//     int node_receive = node_id-1;
+//     if(node_receive<0)
+//     {
+//         node_receive = cluster_size-1;
+//     }
+
+//     // Who I send to
+//     int node_send = node_id+1;
+//     if(node_send >= cluster_size)
+//     {
+//         node_send = 0;
+//     }
+
+
+//     int data = 1000;
+//     double* kkk = (double*)calloc(data,sizeof(double));
+//     double* lll = (double*)calloc(data,sizeof(double));
+//     _v1_send_data_nb(0, kkk, data, node_send, mpi_request);
+//     _v1_receive_data_nb(0, lll, data, node_receive, mpi_request);
+
+
+//     if(node_id%2==0){
+//         _v1_send_data_wait(mpi_request);
+//         _v1_receive_data_wait(mpi_request);
+//     }else{
+//         _v1_receive_data_wait(mpi_request);
+//         _v1_send_data_wait(mpi_request);
+//     }
+
+
+//     MPI_Finalize();
+//     exit(EXIT_SUCCESS);
+
 
     // int __threads;
 
@@ -298,10 +354,15 @@ int main(int argc, char** argv)
     }
     else
     {
+        
 
         /*******************
         ** Create Matrix **
         ********************/
+
+        // Use current time as seed for random generator
+        if(RAND_SEED)
+            srand(time(0));
 
         // X
         X = (double *) malloc(n*d*sizeof(double));
@@ -313,7 +374,7 @@ int main(int argc, char** argv)
         {
             for(int j=0; j<d; j++)
             {
-                X[i*d+j] = (double) rand()/RAND_MAX*100.0;
+                X[i*d+j] = (double) rand()/RAND_MAX*MAX_VECTOR;
             }
         }
 
@@ -328,7 +389,7 @@ int main(int argc, char** argv)
         {
             for(int j=0; j<d; j++)
             {
-                Y[i*d+j] = (double) rand()/RAND_MAX*100.0;
+                Y[i*d+j] = (double) rand()/RAND_MAX*MAX_VECTOR;
             }
         }
 
@@ -366,7 +427,7 @@ int main(int argc, char** argv)
             for(int j=0; j<d; j++)
             {
 
-                printf("%d ", (int)mat_read_ij(&X, i, j, d) );
+                printf("%f ", mat_read_ij(&X, i, j, d) );
 
             }
 
@@ -387,7 +448,7 @@ int main(int argc, char** argv)
             for(int j=0; j<d; j++)
             {
 
-                printf("%d ", (int)mat_read_ij(&Y, i, j, d) );
+                printf("%f ", mat_read_ij(&Y, i, j, d) );
 
             }
 
@@ -398,14 +459,19 @@ int main(int argc, char** argv)
     }
 
 
-    /*****************
+    /******************
      ** Run versions **
-    *****************/
+     ******************/
 
     for(int i=0; i<argc; i++){
 
         if(strcmp(argv[i],"-v0")==0){
-            kNN( X , Y , n , m , d , k );
+            if(V0_USE_X_AS_Y==1)
+            {
+                kNN( X , X , n , n , d , k );
+            }else{
+                kNN( X , Y , n , m , d , k );
+            }
         }
 
         if(strcmp(argv[i],"-v1")==0){
