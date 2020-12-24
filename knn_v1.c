@@ -1,10 +1,10 @@
 #include "knn_v1.h"
-#include<stdlib.h>
 
 #define DEBUG_A 0
 #define DEBUG_MPI 0
 #define DEBUG_RES_I 0
-#define DEBUG_RES_0 1
+#define DEBUG_CHK_BATCH 1
+#define DEBUG_CHK_OFFSET 1
 
 
 #define MPI_MODE_INITIALIZING 0
@@ -19,6 +19,47 @@
 
 int node_id_tmp=-1;
 
+
+void abort()
+{
+    printf("\nMPI Abort...\n");
+    MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+}
+
+
+void _v1_check_offset(knnresult res, int min, int max)
+{
+    int mmin = max;
+    int mmax = min;
+    for(int i=0; i<res.m*res.k; i++)
+    {
+        if(res.nidx[i]>mmax)
+            mmax = res.nidx[i];
+
+        if(res.nidx[i]<mmin)
+            mmin = res.nidx[i];
+
+        if(res.nidx[i]<min || res.nidx[i]>max)
+        {
+            printf("Offset Check Failed! (indx:%d, min:%d, max:%d, i:%d)\n", res.nidx[i], min, max, i);
+            abort();
+        }
+    }
+    printf("mmax: %d (%d)\nmmin: %d (%d)\n", mmin, min, mmax, max);
+}
+
+void _v1_check_batch(double *Y, double *X, int m, int offset)
+{
+    // m = n * d
+    for(int i=0; i<m; i++)
+    {
+        if(Y[i] != X[i+offset])
+        {
+            printf("Batch Check Failed! (Found:%.2f (%.2f), m:%d, offset:%d, i:%d)\n", Y[i], X[i+offset], m, offset, i);
+            abort();
+        }
+    }
+}
 
 
 void _v1_offset_nidx(knnresult* res, int offset)
@@ -307,6 +348,9 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
     // }
 
 
+    double *XX = malloc(n_all*d*sizeof(double));
+    memcpy(&XX[0], &X[0], n_all*d*sizeof(double));
+
     // Nodes other than the main, should
     // receive the X matrix first.
     // Node 0 already has it.
@@ -330,35 +374,11 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
     memcpy(&Y[0], &X[0], d*_v1_n_per_node(node_id, cluster_size, n_all) *sizeof(double));
 
 
-    // if(DEBUG_A)
-    // {
-        // if(node_id==0)
-        // {
-        //     for(int i=0; i<cluster_size; i++)
-        //     {
-        //         printf("node %d n: %d\n", i, _v1_n_per_node(i, cluster_size, n_all));
-        //     }
-        // }
-
-        // printf("--- X: %d ---\n", node_id);
-        // for(int i=0; i<_v1_n_per_node(node_id, cluster_size, n_all); i++)
-        // {
-        //     for(int j=0; j<d; j++)
-        //     {
-        //         printf("%lf ", X[i*d+j]);
-        //     }
-        //     printf("\n");
-        // }
-    // }
-
-
     // Which part of Query
     // Y am I receiving now
     int working_batch_id = node_id;
 
     int m;
-
-    
 
     // For each batch of Y query points
     for(int i_rec=0; i_rec<cluster_size; i_rec++)
@@ -369,8 +389,6 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
         //     printf("\n\n\nNode %d working on batch %d\n", node_id, working_batch_id);
 
 
-        
-        
         // Wait for the last message
         // to finish receiving.
         if(working_batch_id!=node_id)
@@ -381,7 +399,7 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
 
 
         // Send Current Working Batch
-        _v1_send_data_nb(MPI_MODE_CORPUS_DISTRIBUTION, Y, m, node_send, mpi_request);
+        _v1_send_data_b(MPI_MODE_CORPUS_DISTRIBUTION, Y, m*d, node_send, mpi_request);
 
 
         // wte: What To Expect
@@ -393,24 +411,36 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
         wte = _v1_n_per_node(wte, cluster_size, n_all);
 
         // Receive Next batch
-        _v1_receive_data_nb(MPI_MODE_CORPUS_DISTRIBUTION, Z, wte, node_receive, mpi_request);
-        // _v1_receive_data_b(MPI_MODE_CORPUS_DISTRIBUTION, Z, wte, node_receive, mpi_request);
-
+        // _v1_receive_data_nb(MPI_MODE_CORPUS_DISTRIBUTION, Z, wte, node_receive, mpi_request);
+        _v1_receive_data_b(MPI_MODE_CORPUS_DISTRIBUTION, Z, wte*d, node_receive, mpi_request);
 
         res[working_batch_id] = kNN(X, Y, n, m, d, k);
+        res[working_batch_id].k = k;
+        res[working_batch_id].m = m;
         // printf("\n^^ (%d) Batch: %d, m: %d, offset: %d ^^\n", node_id, working_batch_id, m,  node_id*n_all/cluster_size);
         // Offset index results based on batch id
         // TODO: Make it parallel
-        _v1_offset_nidx(&(res[working_batch_id]), node_id*n_all/cluster_size);
+        _v1_offset_nidx(&(res[working_batch_id]), node_id*((int)n_all/cluster_size));
 
-        // printf("   { ");
-        // for(int kk=0; kk<m*k; kk++)
-        // {
-        //     printf("%d ", res[working_batch_id].nidx[kk]);
-        // }
-        // printf("}\n\n\n");
+        printf(":: (%d) Batch: %d, m: %d, offset: %d ::\n", node_id, working_batch_id, m,  node_id*n_all/cluster_size);
 
-        // print_res( res[working_batch_id] );
+        printf("   { ");
+        for(int kk=0; kk<m*k; kk++)
+        {
+            printf("%d ", res[working_batch_id].nidx[kk]);
+        }
+        printf("}\n\n\n");
+
+        print_res( res[working_batch_id] );
+
+        if(DEBUG_CHK_BATCH)
+            _v1_check_batch(Y, XX, m, d*working_batch_id*n_all/cluster_size);
+
+        if(DEBUG_CHK_OFFSET)
+            _v1_check_offset(res[working_batch_id], node_id*n_all/cluster_size, 
+            node_id*n_all/cluster_size+_v1_n_per_node(node_id, cluster_size, n_all) -1);
+
+        printf("^^ (%d) Batch: %d, m: %d, offset: %d ^^\n", node_id, working_batch_id, m,  node_id*n_all/cluster_size);
 
 
         /**
@@ -442,7 +472,7 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
         
     }//end: for i=0:cluster_size-1
 
-    cilk_sync; // indx Offset
+    // cilk_sync; // indx Offset
 
 
     // Offset results based on node id
@@ -461,6 +491,11 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
 
     knnresult res_buff[cluster_size];
     
+    // free(X);
+    // free(XX);
+    // free(Y);
+    // free(Z);
+
     // MPI_Finalize();
     // return;
 
