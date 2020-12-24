@@ -2,258 +2,6 @@
 
 
 
-void abort()
-{
-    if(DEBUG_MPI)
-        printf("\nMPI Abort (%d)...\n", _v1_node_id_local);
-    MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
-}
-
-void finish_local()
-{
-    if(DEBUG_MPI)
-        printf("\nNode Successful Finish (%d)...\n", _v1_node_id_local);
-    MPI_Finalize();
-    exit(EXIT_SUCCESS);
-}
-
-
-void _v1_check_offset(knnresult res, int min, int max)
-{
-    int mmin = max;
-    int mmax = min;
-    for(int i=0; i<res.m*res.k; i++)
-    {
-        if(res.nidx[i]>mmax)
-            mmax = res.nidx[i];
-
-        if(res.nidx[i]<mmin)
-            mmin = res.nidx[i];
-
-        if(res.nidx[i]<min || res.nidx[i]>max)
-        {
-            printf("Offset Check Failed! (indx:%d, min:%d, max:%d, i:%d)\n", res.nidx[i], min, max, i);
-            abort();
-        }
-    }
-    printf("mmax: %d (%d)\nmmin: %d (%d)\n", mmin, min, mmax, max);
-}
-
-void _v1_check_batch(double *Y, double *X, int m, int offset)
-{
-    // m = n * d
-    for(int i=0; i<m; i++)
-    {
-        if(Y[i] != X[i+offset])
-        {
-            printf("Batch Check Failed! (found:%.2f (%.2f), m:%d, offset:%d, i:%d)\n", Y[i], X[i+offset], m, offset, i);
-            abort();
-        }
-    }
-}
-
-
-void _v1_offset_nidx(knnresult* res, int offset)
-{
-    for(int i=0; i<res->m * res->k; i++)
-    {
-        res->nidx[i] += offset;
-    }
-}
-
-
-int _v1_n_per_node(int node_id, int cluster_size, int n)
-{
-
-    int ret = (n/cluster_size);
-    if(node_id == cluster_size-1)
-    {
-        return ret + n%cluster_size;
-    }
-    return ret;
-}
-
-
-/**
- * Compare thhe results of different nodes on the same
- * Query, and find the resulting knn.
- * res  : Resulting data.
- * res_ : Comparison data.
- **/
-void _v1_compare_knnresult(knnresult* res, knnresult* res_)
-{
-
-    res->m = (res->m > res_->m)? res->m : res_->m ;
-
-    int alloc = 2*res->k;
-
-
-    for(int m = 0; m<res->m; m++)
-    {
-
-        double * distm 	= (double *) malloc(alloc*sizeof(double));
-        int * idxm 		= (int *)    malloc(alloc*sizeof(int));
-
-        for(int i=0; i<res->k; i++)
-        {
-            distm[i] = (double) res->ndist[m*res->k+i];
-            idxm[i]  =    (int) res->nidx[m*res->k+i] ;
-        }
-
-        for(int i=0; i<res_->k; i++)
-        {
-            distm[i+res->k] = (double) res_->ndist[m*res->k+i];
-            idxm[i+res->k]  =    (int) res_->nidx[m*res->k+i] ;
-        }
-
-        aux_mergeSort(&distm, &idxm, alloc);
-
-        for(int i=0; i<res->k; i++)
-        {
-            res->ndist[m*res->k+i] = (double) distm[i];
-            res->nidx[m*res->k+i]  =    (int) idxm[i] ;
-        }
-
-    }
-
-
-    // TODO: We must compare different position of k
-
-    // for(int i=0; i< res->k * res->m ; i++)
-    // {
-    //     bool change = false;
-    //     if((res->ndist)[i] > (res_->ndist)[i])
-    //         change = true;
-        
-    //     if(change)
-    //     {
-    //         (res->nidx)[i]  = (int)(res_->nidx)[i];
-    //         (res->ndist)[i] = (double)(res_->ndist)[i];
-    //     }
-    // }
-}
-
-
-/**
- * Usage:
- * 
- * for non blocking:
- * _v1_send_data_nb(MPI_MODE_DISTRIBUTING, X, n, node_send, mpi_request);
- * _v1_send_data_wait(mpi_request); // call later
- * 
- * for blocking:
- * _v1_send_data_b(...)
- **/
-
-
-void _v1_send_data_nb_t(int code, double* Y, int m, int partner, MPI_Datatype type, MPI_Request request[])
-{
-
-    if(DEBUG_MPI)
-        printf("%d Sending to %d [%d]\n", _v1_node_id_local, partner, m);
-
-    MPI_Isend(
-        Y,         // *Buffer
-        m,          // Count
-        type,     // Type
-        partner,   // Destination
-        code,    // Tag
-        MPI_COMM_WORLD,   // Comm
-        &(request[1])   // *Request
-    );
-    
-}
-
-void _v1_receive_data_nb_t(int code, double* Z, int m, int partner, MPI_Datatype type, MPI_Request request[])
-{
-
-    if(DEBUG_MPI)
-        printf("%d Receiving from %d [%d]\n", _v1_node_id_local, partner, m);
-
-    MPI_Irecv(
-        Z,         // *Buffer
-        m,          // Count
-        type,     // Type
-        partner,   // Destination
-        code,    // Tag
-        MPI_COMM_WORLD,   // Comm
-        &(request[0])   // *Request
-    );
-
-}
-
-// With Default DataType: Double
-void _v1_send_data_nb(int code, double* Y, int m, int partner, MPI_Request request[])
-{
-
-    _v1_send_data_nb_t(code, Y, m, partner, MPI_DOUBLE, request);
-    
-}
-
-// With Default DataType: Double
-void _v1_receive_data_nb(int code, double* Z, int m, int partner, MPI_Request request[])
-{
-
-    _v1_receive_data_nb_t(code, Z, m, partner, MPI_DOUBLE, request);
-
-}
-
-void _v1_send_data_wait(MPI_Request request[])
-{
-
-    MPI_Status status;
-    MPI_Wait(&(request[1]), &status);
-    
-}
-
-void _v1_receive_data_wait(MPI_Request request[])
-{
-
-    MPI_Status status;
-    MPI_Wait(&(request[0]), &status);
-
-}
-
-void _v1_send_data_b(int code, double* Y, int m, int partner, MPI_Request request[])
-{
-
-    _v1_send_data_nb(code, Y, m, partner, request);
-     _v1_send_data_wait(request);
-    
-}
-
-void _v1_receive_data_b(int code, double* Z, int m, int partner, MPI_Request request[])
-{
-
-    _v1_receive_data_nb(code, Z, m, partner, request);
-    _v1_receive_data_wait(request);
-
-}
-
-
-void _v1_send_data_b_t(int code, double* Y, int m, int partner, MPI_Datatype type, MPI_Request request[])
-{
-
-    _v1_send_data_nb_t(code, Y, m, partner, type, request);
-     _v1_send_data_wait(request);
-    
-}
-
-void _v1_receive_data_b_t(int code, double* Z, int m, int partner, MPI_Datatype type, MPI_Request request[])
-{
-
-    _v1_receive_data_nb_t(code, Z, m, partner, type, request);
-    _v1_receive_data_wait(request);
-
-}
-
-
-
-
-
-
-
-
 knnresult distrAllkNN(double * X, int n_all, int d, int k)
 {
 
@@ -421,13 +169,17 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
 
             print_res( res[working_batch_id] );
 
-            if(DEBUG_CHK_BATCH)
-                _v1_check_batch(Y, XX, m, d*working_batch_id*n_all/cluster_size);
+        }
 
-            if(DEBUG_CHK_OFFSET)
-                _v1_check_offset(res[working_batch_id], node_id*n_all/cluster_size, 
-                node_id*n_all/cluster_size+_v1_n_per_node(node_id, cluster_size, n_all) -1);
+        if(DEBUG_CHK_BATCH)
+            _v1_check_batch(Y, XX, m, d*working_batch_id*n_all/cluster_size);
 
+        if(DEBUG_CHK_OFFSET)
+            _v1_check_offset(res[working_batch_id], d*node_id*n_all/cluster_size, 
+            d*(node_id*n_all/cluster_size+_v1_n_per_node(node_id, cluster_size, n_all) -1));
+
+        if(DEBUG_A)
+        {
             printf("^^ (%d) Batch: %d, m: %d, offset: %d ^^\n", node_id, working_batch_id, m,  node_id*n_all/cluster_size);
         }
 
@@ -728,4 +480,219 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
 
 }
 
+
+
+
+void abort()
+{
+    if(DEBUG_MPI)
+        printf("\nMPI Abort (%d)...\n", _v1_node_id_local);
+    MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+}
+
+void finish_local()
+{
+    if(DEBUG_MPI)
+        printf("\nNode Successfully Finished (%d)...\n", _v1_node_id_local);
+    MPI_Finalize();
+    exit(EXIT_SUCCESS);
+}
+
+
+void _v1_check_offset(knnresult res, const int min, const int max)
+{
+    int mmin = max;
+    int mmax = min;
+    for(int i=0; i<res.m*res.k; i++)
+    {
+        if(res.nidx[i]>mmax)
+            mmax = res.nidx[i];
+
+        if(res.nidx[i]<mmin)
+            mmin = res.nidx[i];
+
+        if(res.nidx[i]<min || res.nidx[i]>max)
+        {
+            printf("Offset Check Failed! (indx:%d, min:%d, max:%d, i:%d, node:%d)\n", res.nidx[i], min, max, i, _v1_node_id_local);
+            abort();
+        }
+    }
+    printf("mmax: %d (%d)\nmmin: %d (%d)\n", mmin, min, mmax, max);
+}
+
+void _v1_check_batch(double *Y, double *X, int m, int offset)
+{
+    // m = n * d
+    for(int i=0; i<m; i++)
+    {
+        if(Y[i] != X[i+offset])
+        {
+            printf("Batch Check Failed! (found:%.2f, correct:%.2f , m:%d, offset:%d, i:%d, node:%d)\n", Y[i], X[i+offset], m, offset, i, _v1_node_id_local);
+            abort();
+        }
+    }
+}
+
+
+void _v1_offset_nidx(knnresult* res, int offset)
+{
+    for(int i=0; i<res->m * res->k; i++)
+    {
+        res->nidx[i] += offset;
+    }
+}
+
+
+int _v1_n_per_node(int node_id, int cluster_size, int n)
+{
+
+    int ret = (n/cluster_size);
+    if(node_id == cluster_size-1)
+    {
+        return ret + n%cluster_size;
+    }
+    return ret;
+}
+
+
+void _v1_compare_knnresult(knnresult* res, knnresult* res_)
+{
+
+    res->m = (res->m > res_->m)? res->m : res_->m ;
+
+    int alloc = 2*res->k;
+
+
+    for(int m = 0; m<res->m; m++)
+    {
+
+        double * distm 	= (double *) malloc(alloc*sizeof(double));
+        int * idxm 		= (int *)    malloc(alloc*sizeof(int));
+
+        for(int i=0; i<res->k; i++)
+        {
+            distm[i] = (double) res->ndist[m*res->k+i];
+            idxm[i]  =    (int) res->nidx[m*res->k+i] ;
+        }
+
+        for(int i=0; i<res_->k; i++)
+        {
+            distm[i+res->k] = (double) res_->ndist[m*res->k+i];
+            idxm[i+res->k]  =    (int) res_->nidx[m*res->k+i] ;
+        }
+
+        aux_mergeSort(&distm, &idxm, alloc);
+
+        for(int i=0; i<res->k; i++)
+        {
+            res->ndist[m*res->k+i] = (double) distm[i];
+            res->nidx[m*res->k+i]  =    (int) idxm[i] ;
+        }
+
+    }
+
+}
+
+
+
+void _v1_send_data_nb_t(int code, double* Y, int m, int partner, MPI_Datatype type, MPI_Request request[])
+{
+
+    if(DEBUG_MPI)
+        printf("%d Sending to %d [%d]\n", _v1_node_id_local, partner, m);
+
+    MPI_Isend(
+        Y,         // *Buffer
+        m,          // Count
+        type,     // Type
+        partner,   // Destination
+        code,    // Tag
+        MPI_COMM_WORLD,   // Comm
+        &(request[1])   // *Request
+    );
+    
+}
+
+void _v1_receive_data_nb_t(int code, double* Z, int m, int partner, MPI_Datatype type, MPI_Request request[])
+{
+
+    if(DEBUG_MPI)
+        printf("%d Receiving from %d [%d]\n", _v1_node_id_local, partner, m);
+
+    MPI_Irecv(
+        Z,         // *Buffer
+        m,          // Count
+        type,     // Type
+        partner,   // Destination
+        code,    // Tag
+        MPI_COMM_WORLD,   // Comm
+        &(request[0])   // *Request
+    );
+
+}
+
+// With Default DataType: Double
+void _v1_send_data_nb(int code, double* Y, int m, int partner, MPI_Request request[])
+{
+
+    _v1_send_data_nb_t(code, Y, m, partner, MPI_DOUBLE, request);
+    
+}
+
+// With Default DataType: Double
+void _v1_receive_data_nb(int code, double* Z, int m, int partner, MPI_Request request[])
+{
+
+    _v1_receive_data_nb_t(code, Z, m, partner, MPI_DOUBLE, request);
+
+}
+
+void _v1_send_data_wait(MPI_Request request[])
+{
+
+    MPI_Status status;
+    MPI_Wait(&(request[1]), &status);
+    
+}
+
+void _v1_receive_data_wait(MPI_Request request[])
+{
+
+    MPI_Status status;
+    MPI_Wait(&(request[0]), &status);
+
+}
+
+void _v1_send_data_b(int code, double* Y, int m, int partner, MPI_Request request[])
+{
+
+    _v1_send_data_nb(code, Y, m, partner, request);
+     _v1_send_data_wait(request);
+    
+}
+
+void _v1_receive_data_b(int code, double* Z, int m, int partner, MPI_Request request[])
+{
+
+    _v1_receive_data_nb(code, Z, m, partner, request);
+    _v1_receive_data_wait(request);
+
+}
+
+
+void _v1_send_data_b_t(int code, double* Y, int m, int partner, MPI_Datatype type, MPI_Request request[])
+{
+
+    _v1_send_data_nb_t(code, Y, m, partner, type, request);
+     _v1_send_data_wait(request);
+    
+}
+
+void _v1_receive_data_b_t(int code, double* Z, int m, int partner, MPI_Datatype type, MPI_Request request[])
+{
+
+    _v1_receive_data_nb_t(code, Z, m, partner, type, request);
+    _v1_receive_data_wait(request);
+
+}
 

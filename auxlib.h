@@ -11,6 +11,7 @@
 #include <time.h>
 #include <string.h>
 #include "mat.h"
+#include <cblas.h>
 #include <cilk/cilk.h>
 
 

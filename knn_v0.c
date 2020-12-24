@@ -1,22 +1,8 @@
 #include "knn_v0.h"
-#include "auxlib.h"
 
 
 knnresult kNN(double * X, double * Y, int n, int m, int d, int k)
 {
-
-
-    /***************************************
-     * Set up Environment
-     ***************************************/
-
-    // // If V0 is in V1 mode, overwrite settings
-    // if(_MODE_V1_RUNNING)
-    // {
-    //     _TIMER_PRINT = false;
-    // }
-
-    /***************************************/
 
 
     // Start Timer
@@ -79,11 +65,15 @@ knnresult kNN(double * X, double * Y, int n, int m, int d, int k)
     free(X_X);
 
 
-    // printf("--- D1 ---\n");
-    // for(int i=0; i<n; i++){
-    //     printf("%d ", (int)D1[i]);
-    // }
-    // printf("\n\n");
+    if(DEBUG_PRINT_D1)
+    {
+        printf("--- D1 ---\n");
+        for(int i=0; i<n; i++)
+        {
+            printf("%d ", (int)D1[i] );
+        }
+        printf("\n");
+    }
 
 
 
@@ -116,25 +106,20 @@ knnresult kNN(double * X, double * Y, int n, int m, int d, int k)
     );
 
 
-    // printf("--- D2 ---\n");
-
-    // for(int i=0; i<n; i++)
-    // {
-    //     // printf("%d: ( ", i);
-    //     for(int j=0; j<m; j++)
-    //     {
-
-    //         printf("%d ", (int)mat_read_ij(&D2, i, j, m) );
-
-    //     }
-
-    //     printf("; \n");
-        
-    // }
-
-    // printf("\n");
-
-
+    if(DEBUG_PRINT_D2)
+    {
+        printf("--- D2 ---\n");
+        for(int i=0; i<n; i++)
+        {
+            for(int j=0; j<m; j++)
+            {
+                printf("%d ", (int)mat_read_ij(&D2, i, j, m) );
+            }
+            printf("; \n");
+        }
+        printf("\n");
+    }
+    
 
 
     /***************************
@@ -282,8 +267,8 @@ knnresult kNN(double * X, double * Y, int n, int m, int d, int k)
             for(int j=0; j<m; j++)
             {
 
-                if(_MODE_V1_RUNNING && i==j)
-                    D2T[i*n+j] = 0;
+                // if(_MODE_V1_RUNNING && i==j)
+                //     D2T[i*n+j] = 0;
                 printf("%.2f ", D2T[i*n+j] );
 
             }
