@@ -427,7 +427,7 @@ int main(int argc, char** argv)
             for(int j=0; j<d; j++)
             {
 
-                printf("%f ", mat_read_ij(&X, i, j, d) );
+                printf("%.2f ", (double)mat_read_ij(&X, i, j, d) );
 
             }
 

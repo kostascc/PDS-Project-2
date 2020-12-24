@@ -279,7 +279,9 @@ knnresult kNN(double * X, double * Y, int n, int m, int d, int k)
             for(int j=0; j<m; j++)
             {
 
-                printf("%.2f ", (double) mat_read_ij(&D2T, j, i, n) );
+                if(_MODE_V1_RUNNING && i==j)
+                    D2T[i*n+j] = 0;
+                printf("%.2f ", D2T[i*n+j] );
 
             }
 
