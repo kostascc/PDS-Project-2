@@ -265,6 +265,9 @@ knnresult kNN(double * X, double * Y, int n, int m, int d, int k)
      *************************/
     cilk_for(int i=0; i<n*m; i++)
     {
+        // Fix minus Zeroes (???)
+        if(D2T[i]<0.0) D2T[i]=0;
+
         D2T[i] = (double)sqrt(D2T[i]);
     }
 
