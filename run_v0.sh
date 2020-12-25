@@ -7,8 +7,8 @@ export CILK_NWORKERS=3
 
 # sudo apt update -y && sudo apt install -y glibc-source
 
-export KNN_PRINT=0
-export DIST_PRINT=0
+export KNN_PRINT=1
+export DIST_PRINT=1
 export TIMER_PRINT=1
 #export MPI_NWORKERS=1
 

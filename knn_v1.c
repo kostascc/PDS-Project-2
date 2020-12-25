@@ -12,34 +12,29 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
     clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
 
-    // Set V0 in V1 mode
+    /**
+     * Set V0 in V1 mode. This changes
+     * printing and memory management 
+     * in V0.
+     **/
     _MODE_V1_RUNNING = true;
 
 
-    // Initiate MPI
-    MPI_Init(NULL, NULL);
+    int node_id, cluster_size;
 
-    // Get Cluster Size
-    int cluster_size;
-    MPI_Comm_size(MPI_COMM_WORLD, &cluster_size);
+    mpi_initialize(&node_id, &cluster_size);
 
-    // Get Node ID
-    int node_id;
-    MPI_Comm_rank(MPI_COMM_WORLD, &node_id);
-
-    // Set Global Node ID for debugging
-    _v1_node_id_local = node_id;
 
     if(cluster_size<2)
     {
         printf("There is no cluster!\n");
-        abort();
+        mpi_abort();
     }
 
     if(k > n_all/cluster_size)
     {
         printf("Illegal K!\n");
-        abort();
+        mpi_abort();
     }
 
 
@@ -60,8 +55,13 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
 
     // Allocate
     int alloc_size = d*((n_all/cluster_size)+cluster_size);
+
     double* Y = (double*) malloc(alloc_size*sizeof(double));
+    if(Y==NULL) mpi_abort_msg("Malloc Failed (Y)");
+
     double* Z = (double*) malloc(alloc_size*sizeof(double));
+    if(Z==NULL) mpi_abort_msg("Malloc Failed (Z)");
+
     int n = _v1_n_per_node(node_id, cluster_size, n_all);
 
     // Create an array with results
@@ -82,8 +82,20 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
     // }
 
 
-    double *XX = malloc(n_all*d*sizeof(double));
-    memcpy(&XX[0], &X[0], n_all*d*sizeof(double));
+    /**
+     * TODO: Give option for local corpus
+     * loading instead of MPI Based.
+     **/
+
+    double *XX = NULL;
+    
+    if(DEBUG_CHK_BATCH)
+    {
+        XX = malloc(n_all*d*sizeof(double));
+        if(XX==NULL) mpi_abort_msg("Malloc Failed (XX)");
+        memcpy(&XX[0], &X[0], n_all*d*sizeof(double));
+    }
+
 
     // Nodes other than the main, should
     // receive the X matrix first.
@@ -112,16 +124,15 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
     // Y am I receiving now
     int working_batch_id = node_id;
 
+    // Current query points on Y
     int m;
 
     // For each batch of Y query points
     for(int i_rec=0; i_rec<cluster_size; i_rec++)
     {
         
-        
         // if(DEBUG_A==1)
         //     printf("\n\n\nNode %d working on batch %d\n", node_id, working_batch_id);
-
 
         // Wait for the last message
         // to finish receiving.
@@ -137,7 +148,7 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
 
 
         // wte: What To Expect
-        // What data to expect, depending
+        // What length to expect, depending
         // on the next batch id
         int wte = working_batch_id-1;
         if(wte<0)
@@ -149,15 +160,18 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
         _v1_receive_data_b(MPI_MODE_CORPUS_DISTRIBUTION, Z, wte*d, node_receive, mpi_request);
 
         res[working_batch_id] = kNN(X, Y, n, m, d, k);
-        res[working_batch_id].k = k;
-        res[working_batch_id].m = m;
+        // res[working_batch_id].k = k;    // Override k
+        // res[working_batch_id].m = m;    // Override m
+
         // printf("\n^^ (%d) Batch: %d, m: %d, offset: %d ^^\n", node_id, working_batch_id, m,  node_id*n_all/cluster_size);
         // Offset index results based on batch id
         // TODO: Make it parallel
-        _v1_offset_nidx(&(res[working_batch_id]), node_id*((int)n_all/cluster_size));
+        /*cilk_spawn*/ _v1_offset_nidx(&(res[working_batch_id]), node_id*(n_all/cluster_size));
 
         if(DEBUG_A)
         {
+            // cilk_sync;  // Joins only if Debugging is required
+
             printf(":: (%d) Batch: %d, m: %d, offset: %d ::\n", node_id, working_batch_id, m,  node_id*n_all/cluster_size);
 
             printf("   { ");
@@ -167,17 +181,28 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
             }
             printf("}\n\n\n");
 
-            print_res( res[working_batch_id] );
+            if(DEBUG_RES_I)
+                print_res( res[working_batch_id] );
 
         }
 
         if(DEBUG_CHK_BATCH)
-            _v1_check_batch(Y, XX, m, d*working_batch_id*n_all/cluster_size);
+        {
+            printf("  > Batch Offset: %d\n", d*working_batch_id*(n_all/cluster_size));
+            _v1_check_batch(Y, XX, d*m, 
+                d*working_batch_id*(n_all/cluster_size)   // Starting Index
+            );
+        }
+            
 
         if(DEBUG_CHK_OFFSET)
-            _v1_check_offset(res[working_batch_id], d*node_id*n_all/cluster_size, 
-            d*(node_id*n_all/cluster_size+_v1_n_per_node(node_id, cluster_size, n_all) -1));
-
+        {
+            // cilk_sync;  // Joins only if Debugging is required
+            _v1_check_offset(res[working_batch_id], 
+                node_id*(n_all/cluster_size),     // Minimum
+                (node_id*(n_all/cluster_size)+_v1_n_per_node(node_id, cluster_size, n_all))-1);
+        }
+            
         if(DEBUG_A)
         {
             printf("^^ (%d) Batch: %d, m: %d, offset: %d ^^\n", node_id, working_batch_id, m,  node_id*n_all/cluster_size);
@@ -190,9 +215,7 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
          * anti-clockwise by 1 for each loop.
          **/
         working_batch_id-- ;
-
-        // Make sure it does a cycle
-        if(working_batch_id<0)
+        if(working_batch_id<0)  // keep it circling
             working_batch_id = cluster_size-1 ;
 
 
@@ -208,7 +231,7 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
         // In the next loop, we will send 
         // and work on this one concurrently,
         // while receiving a new one in Z.
-        memcpy(Y, Z, m * sizeof(double));
+        memcpy(&Y[0], &Z[0], d*m * sizeof(double));
         
     }//end: for i=0:cluster_size-1
 
@@ -223,6 +246,8 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
     // free(X);
     // free(Y);
     // free(Z);
+
+    // cilk_sync;  // Sync Index Offsetting
 
     _v1_send_data_wait(mpi_request);
     _v1_receive_data_wait(mpi_request);
@@ -382,7 +407,7 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
     {
         _v1_send_data_wait(mpi_request);
         _v1_receive_data_wait(mpi_request);
-        finish_local();
+        mpi_finish_local();
     }
 
 
@@ -463,7 +488,7 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
     }
 
 
-    MPI_Finalize();
+    mpi_finish_local();
 
     // Stop Timer
     clock_gettime(CLOCK_MONOTONIC_RAW, &end);
@@ -482,27 +507,11 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
 
 
 
-
-void abort()
-{
-    if(DEBUG_MPI)
-        printf("\nMPI Abort (%d)...\n", _v1_node_id_local);
-    MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
-}
-
-void finish_local()
-{
-    if(DEBUG_MPI)
-        printf("\nNode Successfully Finished (%d)...\n", _v1_node_id_local);
-    MPI_Finalize();
-    exit(EXIT_SUCCESS);
-}
-
-
 void _v1_check_offset(knnresult res, const int min, const int max)
 {
     int mmin = max;
     int mmax = min;
+
     for(int i=0; i<res.m*res.k; i++)
     {
         if(res.nidx[i]>mmax)
@@ -513,22 +522,23 @@ void _v1_check_offset(knnresult res, const int min, const int max)
 
         if(res.nidx[i]<min || res.nidx[i]>max)
         {
-            printf("Offset Check Failed! (indx:%d, min:%d, max:%d, i:%d, node:%d)\n", res.nidx[i], min, max, i, _v1_node_id_local);
-            abort();
+            printf("mmin: %d (%d)\nmmax: %d (%d)\n", mmin, min, mmax, max);
+            printf("Offset Check Failed! (indx:%d, min:%d, max:%d, i:%d)\n", res.nidx[i], min, max, i);
+            mpi_abort_msg("Offset Check");
         }
     }
-    printf("mmax: %d (%d)\nmmin: %d (%d)\n", mmin, min, mmax, max);
+    
 }
 
-void _v1_check_batch(double *Y, double *X, int m, int offset)
+void _v1_check_batch(double *Y, double *X, int length, int offset)
 {
     // m = n * d
-    for(int i=0; i<m; i++)
+    for(int i=0; i<length; i++)
     {
         if(Y[i] != X[i+offset])
         {
-            printf("Batch Check Failed! (found:%.2f, correct:%.2f , m:%d, offset:%d, i:%d, node:%d)\n", Y[i], X[i+offset], m, offset, i, _v1_node_id_local);
-            abort();
+            printf("Batch Check Failed! (found:%.2f, correct:%.2f , length:%d, offset:%d, i:%d)\n", Y[i], X[i+offset], length, offset, i);
+            mpi_abort_msg("Batch Check");
         }
     }
 }
@@ -592,107 +602,3 @@ void _v1_compare_knnresult(knnresult* res, knnresult* res_)
     }
 
 }
-
-
-
-void _v1_send_data_nb_t(int code, double* Y, int m, int partner, MPI_Datatype type, MPI_Request request[])
-{
-
-    if(DEBUG_MPI)
-        printf("%d Sending to %d [%d]\n", _v1_node_id_local, partner, m);
-
-    MPI_Isend(
-        Y,         // *Buffer
-        m,          // Count
-        type,     // Type
-        partner,   // Destination
-        code,    // Tag
-        MPI_COMM_WORLD,   // Comm
-        &(request[1])   // *Request
-    );
-    
-}
-
-void _v1_receive_data_nb_t(int code, double* Z, int m, int partner, MPI_Datatype type, MPI_Request request[])
-{
-
-    if(DEBUG_MPI)
-        printf("%d Receiving from %d [%d]\n", _v1_node_id_local, partner, m);
-
-    MPI_Irecv(
-        Z,         // *Buffer
-        m,          // Count
-        type,     // Type
-        partner,   // Destination
-        code,    // Tag
-        MPI_COMM_WORLD,   // Comm
-        &(request[0])   // *Request
-    );
-
-}
-
-// With Default DataType: Double
-void _v1_send_data_nb(int code, double* Y, int m, int partner, MPI_Request request[])
-{
-
-    _v1_send_data_nb_t(code, Y, m, partner, MPI_DOUBLE, request);
-    
-}
-
-// With Default DataType: Double
-void _v1_receive_data_nb(int code, double* Z, int m, int partner, MPI_Request request[])
-{
-
-    _v1_receive_data_nb_t(code, Z, m, partner, MPI_DOUBLE, request);
-
-}
-
-void _v1_send_data_wait(MPI_Request request[])
-{
-
-    MPI_Status status;
-    MPI_Wait(&(request[1]), &status);
-    
-}
-
-void _v1_receive_data_wait(MPI_Request request[])
-{
-
-    MPI_Status status;
-    MPI_Wait(&(request[0]), &status);
-
-}
-
-void _v1_send_data_b(int code, double* Y, int m, int partner, MPI_Request request[])
-{
-
-    _v1_send_data_nb(code, Y, m, partner, request);
-     _v1_send_data_wait(request);
-    
-}
-
-void _v1_receive_data_b(int code, double* Z, int m, int partner, MPI_Request request[])
-{
-
-    _v1_receive_data_nb(code, Z, m, partner, request);
-    _v1_receive_data_wait(request);
-
-}
-
-
-void _v1_send_data_b_t(int code, double* Y, int m, int partner, MPI_Datatype type, MPI_Request request[])
-{
-
-    _v1_send_data_nb_t(code, Y, m, partner, type, request);
-     _v1_send_data_wait(request);
-    
-}
-
-void _v1_receive_data_b_t(int code, double* Z, int m, int partner, MPI_Datatype type, MPI_Request request[])
-{
-
-    _v1_receive_data_nb_t(code, Z, m, partner, type, request);
-    _v1_receive_data_wait(request);
-
-}
-
