@@ -49,11 +49,11 @@ void _v1_check_offset(knnresult res, const int min, const int max);
 /**
  * Checks Received Query Batch based on the
  * whole corpus.
- * m should be 'elements times dimensions'.
- * Offset is the correct point is which the
+ * length:'elements times dimensions'.
+ * Offset: the correct point in which the
  * query can be found based on batch ID.
  **/
-void _v1_check_batch(double *Y, double *X, int m, int offset);
+void _v1_check_batch(double *Y, double *X, int length, int offset);
 
 /**
  * Offsets indexes based on node ID.

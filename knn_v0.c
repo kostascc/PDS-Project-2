@@ -4,6 +4,30 @@
 knnresult kNN(double * X, double * Y, int n, int m, int d, int k)
 {
 
+    /**
+     * Here we use 3 different tables to calculate the
+     * dimensions.
+     * 
+     * C^2 = D1 + D2 + D3
+     * 
+     * where D1 is a n-by-1 array of 'X*.X' ,
+     * D3 is a 1-by-m array of 'Y*.Y' ,
+     * and D2 is -2*X*Y .
+     * Instead of the exact matrices, sometimes their
+     * transposed counterparts are used to improve
+     * performance.
+     **/
+
+
+    /**
+     * TODO: Calculate and use only the upper or lower
+     * triangle, or at least mirror one to the other to
+     * save in calculations. 
+     * 
+     * TODO: For better performance,store the matrices 
+     * in a triangular format instead of rectangular.
+     **/
+
 
     // Start Timer
     time_t t;
