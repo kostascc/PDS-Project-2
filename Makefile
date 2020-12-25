@@ -5,7 +5,6 @@ CFLAGS=-O3
 
 default: all
 
-
 auxlib:
 	$(CC) $(CFLAGS) -c -fpic auxlib.c -fcilkplus
 	$(CC) $(CFLAGS) -shared -o libauxlib.so auxlib.o -fcilkplus
@@ -17,6 +16,10 @@ knn_v0:
 knn_v1:
 	$(MPICC) $(CFLAGS) -c -fpic knn_v1.c -fcilkplus 
 	$(MPICC) $(CFLAGS) -shared -o libknn_v1.so knn_v1.o -fcilkplus
+
+knn_v2:
+	$(MPICC) $(CFLAGS) -c -fpic knn_v2.c -fcilkplus 
+	$(MPICC) $(CFLAGS) -shared -o libknn_v2.so knn_v2.o -fcilkplus
 
 msort:
 	$(CILKCC) $(CFLAGS) -c -fpic msort.c
@@ -30,40 +33,20 @@ mmarket:
 	$(CC) $(CFLAGS) -c -fpic mmarket.c
 	$(CC) $(CFLAGS) -shared -o libmmarket.so mmarket.o
 
+mpi_wrapper:
+	$(MPICC) $(CFLAGS) -c -fpic mpi_wrapper.c
+	$(MPICC) $(CFLAGS) -shared -o libmpi_wrapper.so mpi_wrapper.o
+
 mat:
 	$(CC) $(CFLAGS) -c -fpic mat.c -fcilkplus
 	$(CC) $(CFLAGS) -shared -o libmat.so mat.o -fcilkplus
 
-
-# v4:
-# 	$(CC) $(CFLAGS) -c -fpic v4.c
-# 	$(CC) $(CFLAGS) -shared -o libv4.so v4.o
-
-# v4_clk:
-# 	$(CILKCC) $(CFLAGS) -c -fpic v4_clk.c -fcilkplus -lpthread
-# 	$(CILKCC) $(CFLAGS) -shared -o libv4_clk.so v4_clk.o
-
-# v4_omp:
-# 	$(CC) $(CFLAGS) -c -fpic v4_omp.c -fopenmp
-# 	$(CC) $(CFLAGS) -shared -o libv4_omp.so v4_omp.o
-
-# v4_ptd:
-# 	$(CC) $(CFLAGS) -c -fpic v4_ptd.c -lpthread
-# 	$(CC) $(CFLAGS) -shared -o libv4_ptd.so v4_ptd.o
-
-# triangles: 
-# 	$(CC) $(CFLAGS) -o triangles.o triangles.c mat.o -fcilkplus -fopenmp
-
-
-# gcc ... -lopenblas -lpthread
-
 main:
-	$(MPICC) $(CFLAGS) -o main.o main.c auxlib.o knn_v0.o \
-	knn_v1.o mmio.o mmarket.o mat.o \
+	$(MPICC) $(CFLAGS) -o main.o main.c auxlib.o knn_v0.o  \
+	knn_v1.o knn_v2.o mmio.o mmarket.o mat.o mpi_wrapper.o \
 	-lopenblas -fcilkplus -fopenmp -lpthread -lm
 
-
-all: auxlib mmio mat mmarket knn_v0 knn_v1 main
+all: auxlib mpi_wrapper mmio mat mmarket knn_v0 knn_v1 knn_v2 main
 
 .PHONY: all test clean
 
