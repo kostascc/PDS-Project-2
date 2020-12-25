@@ -40,6 +40,14 @@
 #define max(x,y) (((x) > (y)) ? (x) : (y))
 
 
+/**
+ * Startup Script Options
+ **/
+#define MATRIX_PRINT  true  // Print Resulting X & Y
+#define RAND_SEED     false // Use seed for randomization
+#define MAX_VECTOR    40.0  // Max distance vector
+
+
 
 /**
  * True if V1 is running.
@@ -80,6 +88,19 @@ typedef struct knnresult{
 
 
 /**
+ * Main File runtime struct
+ **/
+typedef struct _runtime{
+  double* X;
+  double* Y;
+  int n;
+  int m;
+  int d;
+  int k;
+} _runtime;
+
+
+/**
  * Sorts and selects neighbors
  * for a specific m.
  **/
@@ -114,5 +135,11 @@ void aux_mergeSort( double ** _I, int ** _J, int len );
  * Print knn result
  **/
 void print_res(knnresult knn);
+
+
+/**
+ * Startup Script
+ **/
+_runtime startup(int argc, char** argv);
 
 #endif

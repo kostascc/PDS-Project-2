@@ -10,453 +10,21 @@
 #include "auxlib.h"
 
 
-
 // Show Created or imported
 // matrices in stdout
-#define MATRIX_PRINT 0
-#define RAND_SEED 0
-#define MAX_VECTOR 40.0
-#define V0_USE_X_AS_Y 1
-
+#define V0_USE_X_AS_Y true
 
 
 int main(int argc, char** argv)
 {
 
 
-//      /**
-//      * Try MPI Big Data
-//      **/
+    /********************
+     ** Startup Script **
+     ********************/
 
-// // Initiate MPI
-//     MPI_Init(NULL, NULL);
+    _runtime r = startup(argc, argv);
 
-//     // Get Cluster Size
-//     int cluster_size;
-//     MPI_Comm_size(MPI_COMM_WORLD, &cluster_size);
-
-//     // Get Node ID
-//     int node_id;
-//     MPI_Comm_rank(MPI_COMM_WORLD, &node_id);
-
-//         MPI_Request mpi_request[2];
-
-// // Who I receive from 
-//     int node_receive = node_id-1;
-//     if(node_receive<0)
-//     {
-//         node_receive = cluster_size-1;
-//     }
-
-//     // Who I send to
-//     int node_send = node_id+1;
-//     if(node_send >= cluster_size)
-//     {
-//         node_send = 0;
-//     }
-
-
-//     int data = 1000;
-//     double* kkk = (double*)calloc(data,sizeof(double));
-//     double* lll = (double*)calloc(data,sizeof(double));
-//     _v1_send_data_nb(0, kkk, data, node_send, mpi_request);
-//     _v1_receive_data_nb(0, lll, data, node_receive, mpi_request);
-
-
-//     if(node_id%2==0){
-//         _v1_send_data_wait(mpi_request);
-//         _v1_receive_data_wait(mpi_request);
-//     }else{
-//         _v1_receive_data_wait(mpi_request);
-//         _v1_send_data_wait(mpi_request);
-//     }
-
-
-//     MPI_Finalize();
-//     exit(EXIT_SUCCESS);
-
-
-    // int __threads;
-
-    char _x_filename[1024];
-
-    bool _x_value_included = true;
-    bool _x_transpose = false;
-
-    char _y_filename[1024];
-
-    bool _y_value_included = true;
-    bool _y_transpose = false;
-
-    int _n = 1000;
-    int _m = 100;
-    int _d = 10;
-    int _k = 5;
-
-    bool _rand = false;
-
-
-
-    /***************************************
-     * Set up Environment Parameters
-     * and debugging modes
-     ***************************************/
-
-    char *s_tmp;
-
-    s_tmp = getenv( _KNN_PRINT_VAR );
-    _KNN_PRINT = (s_tmp!=NULL)? ( strchr(s_tmp,'1')!=NULL? true : false  ) : false;
-    // free(s_tmp);
-
-    s_tmp = getenv( _DIST_PRINT_VAR );
-    _DIST_PRINT = (s_tmp!=NULL)? ( strchr(s_tmp,'1')!=NULL? true : false  ) : false;
-    // free(s_tmp);
-
-    s_tmp = getenv( _TIMER_PRINT_VAR );
-    _TIMER_PRINT = (s_tmp!=NULL)? ( strchr(s_tmp,'1')!=NULL? true : false  ) : false;
-
-    /***************************************/
-
-
-
-
-    /** 
-    * For each argument given,
-    * find the respective configuration
-    * parameter and change it
-    **/
-    for(int i=0; i<argc; i++){
-
-
-        int _tmp_int = NULL;   // Temporary placeholder
-        char _tmp_str[1024];
-
-
-        /**
-         * " -transpx -TraspX -xTransp 
-         * -XTransp -xtranspose -xTranspose "
-         */
-        if( strcmp(argv[i],"-transpx")==0 )
-        {
-            _x_transpose = true;
-            continue;
-        }
-
-
-        /**
-         * " -transpy -TraspY -yTransp 
-         * -YTransp -ytranspose -yTranspose "
-         */
-        if( strcmp(argv[i],"-transpy")==0 )
-        {
-            _y_transpose = true;
-            continue;
-        }
-
-
-        /**
-         * " -t_ "
-         */
-        if(sscanf(argv[i], "-t%d", &_tmp_int))
-        {
-            // if(_tmp_int>0 && _tmp_int<64)
-            // {
-            //     __threads = _tmp_int;
-            //     continue;
-            // }
-            printf("-t Parameter Deprecated: Please use 'export CILK_NWORKERS=_' instead.\n");
-        }
-
-
-
-        /**
-         * " -k_ "
-         */
-        if(sscanf(argv[i], "-k%d", &_tmp_int))
-        {
-            if(_tmp_int>0)
-            {
-                _k = _tmp_int;
-                continue;
-            }
-        }
-
-
-        /**
-         * " -m_ "
-         */
-        if(sscanf(argv[i], "-m%d", &_tmp_int))
-        {
-            if(_tmp_int>0)
-            {
-                _m = _tmp_int;
-                continue;
-            }
-        }
-
-
-        /**
-         * " -n_ "
-         */
-        if(sscanf(argv[i], "-n%d", &_tmp_int))
-        {
-            if(_tmp_int>0)
-            {
-                _n = _tmp_int;
-                continue;
-            }
-        }
-
-
-        /**
-         * " -d_ "
-         */
-        if(sscanf(argv[i], "-d%d", &_tmp_int))
-        {
-            if(_tmp_int>0)
-            {
-                _d = _tmp_int;
-                continue;
-            }
-        }
-
-
-        /**
-         * " -rand "
-         */
-        if( strcmp(argv[i],"-rand")==0 )
-        {
-            _rand = true;
-            continue;
-        }
-
-
-        // /**
-        //  * " -x< Path > "
-        //  */
-        // if(sscanf(argv[i], "-x%s", _tmp_str))
-        // {
-        //     strcpy(_x_filename, _tmp_str);
-        //     printf("xfile 1 %s\n", _x_filename);
-        //     continue;
-        // }
-
-
-        /**
-         * " -x < Path > "
-         */
-        if(strcmp(argv[i],"-x")==0)
-        {
-            if(i<argc-1)
-            {
-                
-                strcpy(_x_filename, argv[i+1]);
-                continue;
-            }
-        }
-
-
-        // /**
-        //  * " -y< Path > "
-        //  */
-        // if(sscanf(argv[i], "-y%s", _tmp_str))
-        // {
-        //     strcpy(_y_filename, _tmp_str);
-        //     printf("yfile 1 %s\n", _y_filename);
-        //     continue;
-        // }
-
-
-        /**
-         * " -y < Path > "
-         */
-        if(strcmp(argv[i],"-y")==0)
-        {
-            if(i<argc-1)
-            {
-                strcpy(_y_filename, argv[i+1]);
-                continue;
-            }
-        }
-
-
-    }
-
-
-
-    /**
-    * Configure threads on system runtime level
-    **/
-
-    // Cilk:
-    // char _tmp_str[4];
-    // sprintf(_tmp_str, "%d", __threads);
-    // __cilkrts_set_param("nworkers", _tmp_str);
-
-    // // OpenMP:   
-    // omp_set_num_threads(__threads);
-    
-
-
-    /**
-     * Corpus Points
-     * n-by-d
-     **/
-    double * X; 
-
-    /**
-     * Query Points
-     * m-by-d
-     **/
-    double * Y;
-
-    /**
-     * Corpus points count
-     **/
-    int n = (_rand) ? _n : 0;
-
-    /**
-     * Query points count
-     **/
-    int m = (_rand) ? _m : 0;
-
-    /**
-     * Dimension count
-     * 
-     * ! It has to be initialized as 0,
-     * otherwise mmarket_import might keep an 
-     * arbitrary number of dimensions.
-     **/
-    int d = (_rand) ? _d : 0;
-    
-    /**
-     * neighbours count
-     **/
-    int k = _k;
-
-
-
-    if(!_rand)
-    {
-
-        /*******************
-         ** Import Matrix **
-        ********************/
-
-        mmarket_import(_x_filename, &X, &n, &d, _x_value_included, _x_transpose, true); // Import MM
-
-        printf("n: %d, d: %d\n", n, d);
-
-        mmarket_import(_y_filename, &Y, &m, &d, _y_value_included, _y_transpose, true); // Import MM
-
-        printf("m: %d, d: %d\n", m, d);
-
-    }
-    else
-    {
-        
-
-        /*******************
-        ** Create Matrix **
-        ********************/
-
-        // Use current time as seed for random generator
-        if(RAND_SEED)
-            srand(time(0));
-
-        // X
-        X = (double *) malloc(n*d*sizeof(double));
-        if(X==NULL)
-        {
-            printf("Failed Allocating memory (main).\n");
-        }
-        for(int i=0; i<n; i++)
-        {
-            for(int j=0; j<d; j++)
-            {
-                X[i*d+j] = (double) rand()/RAND_MAX*MAX_VECTOR;
-            }
-        }
-
-
-        // Y
-        Y = (double *) malloc(n*d*sizeof(double));
-        if(Y==NULL)
-        {
-            printf("Failed Allocating memory (main).\n");
-        }
-        for(int i=0; i<m; i++)
-        {
-            for(int j=0; j<d; j++)
-            {
-                Y[i*d+j] = (double) rand()/RAND_MAX*MAX_VECTOR;
-            }
-        }
-
-    }
-
-
-    if(k>n)
-    {
-        printf("Illegal Parameters (k>n).\n");
-        exit(EXIT_FAILURE);
-    }
-
-    if(d<1||d>200)
-    {
-        printf("Illegal Parameters (d<1 or d>200).\n");
-        exit(EXIT_FAILURE);
-    }
-
-    if(n<1 || m<1)
-    {
-        printf("Illegal Parameters (n or m <0).\n");
-        exit(EXIT_FAILURE);
-    }
-
-
-    if(MATRIX_PRINT)
-    {
-        printf("\n");
-
-        printf("--- X ---\n");
-
-        for(int i=0; i<n; i++)
-        {
-            // printf("", i);
-            for(int j=0; j<d; j++)
-            {
-
-                printf("%.2f ", (double)mat_read_ij(&X, i, j, d) );
-
-            }
-
-            printf("; \n");
-            
-        }
-
-
-        //     mat_transpose(&X, &Y, n, d);
-
-        printf("\n");
-
-        printf("--- Y ---\n");
-
-        for(int i=0; i<m; i++)
-        {
-            // printf("%d: ( ", i);
-            for(int j=0; j<d; j++)
-            {
-
-                printf("%f ", mat_read_ij(&Y, i, j, d) );
-
-            }
-
-            printf("; \n");
-            
-        }
-
-    }
 
 
     /******************
@@ -466,34 +34,31 @@ int main(int argc, char** argv)
     for(int i=0; i<argc; i++){
 
         if(strcmp(argv[i],"-v0")==0){
-            if(V0_USE_X_AS_Y==1)
+            if(V0_USE_X_AS_Y)
             {
-                kNN( X , X , n , n , d , k );
+                kNN( r.X , r.X , r.n , r.n , r.d , r.k );
             }else{
-                kNN( X , Y , n , m , d , k );
+                kNN( r.X , r.Y , r.n , r.m , r.d , r.k );
             }
         }
 
         if(strcmp(argv[i],"-v1")==0){
-            distrAllkNN( X , n , d , k );
+            distrAllkNN( r.X , r.n , r.d , r.k );
         }
 
-        // if(strcmp(argv[i],"-coorow")==0){
-        //     _coo_row(mat);
-        // }
+        if(strcmp(argv[i],"-v2")==0){
+            distrAllkNNVPT( r.X , r.n , r.d , r.k );
+        }
 
-        // if(strcmp(argv[i],"-coocol")==0){
-        //     _coo_col(mat);
-        // }
-
-        // if(strcmp(argv[i],"-coo")==0){
-        //     _coo(mat);
-        // }
     }
 
 
-    free(X);
-    free(Y);
+    /*************
+     ** Cleanup **
+     *************/
+    
+    free(r.X);
+    free(r.Y);
     
 
     return 0;
