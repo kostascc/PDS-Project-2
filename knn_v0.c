@@ -293,7 +293,7 @@ knnresult kNN(double * X, double * Y, int n, int m, int d, int k)
 
                 // if(_MODE_V1_RUNNING && i==j)
                 //     D2T[i*n+j] = 0;
-                printf("%.2f ", D2T[i*n+j] );
+                printf("%7.2f", D2T[i*n+j] );
 
             }
 
