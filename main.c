@@ -6,8 +6,10 @@
 #include "mmarket.h"
 #include "knn_v0.h"
 #include "knn_v1.h"
+#include "knn_v2.h"
 #include <mpi.h>
 #include "auxlib.h"
+#include "mpi_wrapper.h"
 
 
 // Show Created or imported
@@ -17,7 +19,6 @@
 
 int main(int argc, char** argv)
 {
-
 
     /********************
      ** Startup Script **
@@ -60,7 +61,16 @@ int main(int argc, char** argv)
     free(r.X);
     free(r.Y);
     
+    if( _MODE_V1_RUNNING || _MODE_V2_RUNNING )
+    {
+        // Stop MPI Node
+        mpi_finish_local();
+
+        // It shouldn't get to this
+        return EXIT_FAILURE;
+    }
 
     return 0;
+    
 
 }

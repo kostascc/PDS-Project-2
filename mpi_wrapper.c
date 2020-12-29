@@ -15,7 +15,7 @@ void mpi_initialize(int* node_id, int* cluster_size)
 }
 
 
-void _v1_send_data_nb_t(int code, double* Y, int m, int partner, MPI_Datatype type, MPI_Request request[])
+void mpi_send_data_nb_t(int code, double* Y, int m, int partner, MPI_Datatype type, MPI_Request request[])
 {
 
     if(DEBUG_MPI)
@@ -33,7 +33,7 @@ void _v1_send_data_nb_t(int code, double* Y, int m, int partner, MPI_Datatype ty
     
 }
 
-void _v1_receive_data_nb_t(int code, double* Z, int m, int partner, MPI_Datatype type, MPI_Request request[])
+void mpi_receive_data_nb_t(int code, double* Z, int m, int partner, MPI_Datatype type, MPI_Request request[])
 {
 
     if(DEBUG_MPI)
@@ -52,22 +52,22 @@ void _v1_receive_data_nb_t(int code, double* Z, int m, int partner, MPI_Datatype
 }
 
 // With Default DataType: Double
-void _v1_send_data_nb(int code, double* Y, int m, int partner, MPI_Request request[])
+void mpi_send_data_nb(int code, double* Y, int m, int partner, MPI_Request request[])
 {
 
-    _v1_send_data_nb_t(code, Y, m, partner, MPI_DOUBLE, request);
+    mpi_send_data_nb_t(code, Y, m, partner, MPI_DOUBLE, request);
     
 }
 
 // With Default DataType: Double
-void _v1_receive_data_nb(int code, double* Z, int m, int partner, MPI_Request request[])
+void mpi_receive_data_nb(int code, double* Z, int m, int partner, MPI_Request request[])
 {
 
-    _v1_receive_data_nb_t(code, Z, m, partner, MPI_DOUBLE, request);
+    mpi_receive_data_nb_t(code, Z, m, partner, MPI_DOUBLE, request);
 
 }
 
-void _v1_send_data_wait(MPI_Request request[])
+void mpi_send_data_wait(MPI_Request request[])
 {
 
     MPI_Status status;
@@ -75,7 +75,7 @@ void _v1_send_data_wait(MPI_Request request[])
     
 }
 
-void _v1_receive_data_wait(MPI_Request request[])
+void mpi_receive_data_wait(MPI_Request request[])
 {
 
     MPI_Status status;
@@ -83,36 +83,36 @@ void _v1_receive_data_wait(MPI_Request request[])
 
 }
 
-void _v1_send_data_b(int code, double* Y, int m, int partner, MPI_Request request[])
+void mpi_send_data_b(int code, double* Y, int m, int partner, MPI_Request request[])
 {
 
-    _v1_send_data_nb(code, Y, m, partner, request);
-     _v1_send_data_wait(request);
+    mpi_send_data_nb(code, Y, m, partner, request);
+     mpi_send_data_wait(request);
     
 }
 
-void _v1_receive_data_b(int code, double* Z, int m, int partner, MPI_Request request[])
+void mpi_receive_data_b(int code, double* Z, int m, int partner, MPI_Request request[])
 {
 
-    _v1_receive_data_nb(code, Z, m, partner, request);
-    _v1_receive_data_wait(request);
+    mpi_receive_data_nb(code, Z, m, partner, request);
+    mpi_receive_data_wait(request);
 
 }
 
 
-void _v1_send_data_b_t(int code, double* Y, int m, int partner, MPI_Datatype type, MPI_Request request[])
+void mpi_send_data_b_t(int code, double* Y, int m, int partner, MPI_Datatype type, MPI_Request request[])
 {
 
-    _v1_send_data_nb_t(code, Y, m, partner, type, request);
-     _v1_send_data_wait(request);
+    mpi_send_data_nb_t(code, Y, m, partner, type, request);
+     mpi_send_data_wait(request);
     
 }
 
-void _v1_receive_data_b_t(int code, double* Z, int m, int partner, MPI_Datatype type, MPI_Request request[])
+void mpi_receive_data_b_t(int code, double* Z, int m, int partner, MPI_Datatype type, MPI_Request request[])
 {
 
-    _v1_receive_data_nb_t(code, Z, m, partner, type, request);
-    _v1_receive_data_wait(request);
+    mpi_receive_data_nb_t(code, Z, m, partner, type, request);
+    mpi_receive_data_wait(request);
 
 }
 

@@ -48,70 +48,70 @@ void mpi_finish_local();
  * Usage:
  * 
  * For non blocking:
- *   _v1_send_data_nb(MPI_MODE_DISTRIBUTING, X, n, node_send, mpi_request);
- *   _v1_send_data_wait(mpi_request); // call later
+ *   mpi_send_data_nb(MPI_MODE_DISTRIBUTING, X, n, node_send, mpi_request);
+ *   mpi_send_data_wait(mpi_request); // call later
  * 
  * For blocking:
- *   _v1_send_data_b(...)
+ *   mpi_send_data_b(...)
  * 
  * Use wait at any time to block while receiving or sending:
- *   _v1_send_wait(mpi_request); // Wait for sending to finish
+ *   mpi_send_wait(mpi_request); // Wait for sending to finish
  * 
  **/
 
 /**
  * Non-Blocking Send with DataType.
  **/
-void _v1_send_data_nb_t(int code, double* Y, int m, int partner, MPI_Datatype type, MPI_Request request[]);
+void mpi_send_data_nb_t(int code, double* Y, int m, int partner, MPI_Datatype type, MPI_Request request[]);
 
 /**
  * Non-Blocking Receive with DataType.
  **/
-void _v1_receive_data_nb_t(int code, double* Z, int m, int partner, MPI_Datatype type, MPI_Request request[]);
+void mpi_receive_data_nb_t(int code, double* Z, int m, int partner, MPI_Datatype type, MPI_Request request[]);
 
 /**
  * Non-Blocking Send,
  * with default DataType: Double.
  **/
-void _v1_send_data_nb(int code, double* Y, int m, int partner, MPI_Request request[]);
+void mpi_send_data_nb(int code, double* Y, int m, int partner, MPI_Request request[]);
 
 /**
  * Non-Blocking Receive,
  * with default DataType: Double.
  **/
-void _v1_receive_data_nb(int code, double* Z, int m, int partner, MPI_Request request[]);
+void mpi_receive_data_nb(int code, double* Z, int m, int partner, MPI_Request request[]);
 
 /**
  * Blocks until send has finished.
  **/
-void _v1_send_data_wait(MPI_Request request[]);
+void mpi_send_data_wait(MPI_Request request[]);
 
 /**
  * Blocks until receive has finished.
  **/
-void _v1_receive_data_wait(MPI_Request request[]);
+void mpi_receive_data_wait(MPI_Request request[]);
 
 /**
  * Blocking Send,
  * with default DataType: Double.
  **/
-void _v1_send_data_b(int code, double* Y, int m, int partner, MPI_Request request[]);
+void mpi_send_data_b(int code, double* Y, int m, int partner, MPI_Request request[]);
 
 /**
  * Blocking Receive,
  * with default DataType: Double.
  **/
-void _v1_receive_data_b(int code, double* Z, int m, int partner, MPI_Request request[]);
+void mpi_receive_data_b(int code, double* Z, int m, int partner, MPI_Request request[]);
 
 /**
  * Blocking Send with DataType.
  **/
-void _v1_send_data_b_t(int code, double* Y, int m, int partner, MPI_Datatype type, MPI_Request request[]);
+void mpi_send_data_b_t(int code, double* Y, int m, int partner, MPI_Datatype type, MPI_Request request[]);
 
 /**
  * Blocking Receive with DataType.
  **/
-void _v1_receive_data_b_t(int code, double* Z, int m, int partner, MPI_Datatype type, MPI_Request request[]);
+void mpi_receive_data_b_t(int code, double* Z, int m, int partner, MPI_Datatype type, MPI_Request request[]);
 
 /*********************************************/
 

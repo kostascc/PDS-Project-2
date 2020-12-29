@@ -19,9 +19,8 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
      **/
     _MODE_V1_RUNNING = true;
 
-
+    // Initialize MPI
     int node_id, cluster_size;
-
     mpi_initialize(&node_id, &cluster_size);
 
 
@@ -102,7 +101,7 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
     // Node 0 already has it.
     if(node_id>0)
     {
-        _v1_receive_data_b(MPI_MODE_DATA_DISTRIBUTION, X, n_all*d, node_receive, mpi_request);
+        mpi_receive_data_b(MPI_MODE_DATA_DISTRIBUTION, X, n_all*d, node_receive, mpi_request);
     }
 
     // All nodes, except the last one, 
@@ -110,7 +109,7 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
     // next one.
     if(node_id != cluster_size-1)
     {
-        _v1_send_data_b(MPI_MODE_DATA_DISTRIBUTION, X, n_all*d, node_send, mpi_request);
+        mpi_send_data_b(MPI_MODE_DATA_DISTRIBUTION, X, n_all*d, node_send, mpi_request);
     }
 
     // Hold on to local data only
@@ -137,14 +136,14 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
         // Wait for the last message
         // to finish receiving.
         if(working_batch_id!=node_id)
-            _v1_send_data_wait(mpi_request);
+            mpi_send_data_wait(mpi_request);
 
 
         m = _v1_n_per_node(working_batch_id, cluster_size, n_all);
 
 
         // Send Current Working Batch
-        _v1_send_data_b(MPI_MODE_CORPUS_DISTRIBUTION, Y, m*d, node_send, mpi_request);
+        mpi_send_data_b(MPI_MODE_CORPUS_DISTRIBUTION, Y, m*d, node_send, mpi_request);
 
 
         // wte: What To Expect
@@ -156,8 +155,8 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
         wte = _v1_n_per_node(wte, cluster_size, n_all);
 
         // Receive Next batch
-        // _v1_receive_data_nb(MPI_MODE_CORPUS_DISTRIBUTION, Z, wte, node_receive, mpi_request);
-        _v1_receive_data_b(MPI_MODE_CORPUS_DISTRIBUTION, Z, wte*d, node_receive, mpi_request);
+        // mpi_receive_data_nb(MPI_MODE_CORPUS_DISTRIBUTION, Z, wte, node_receive, mpi_request);
+        mpi_receive_data_b(MPI_MODE_CORPUS_DISTRIBUTION, Z, wte*d, node_receive, mpi_request);
 
         res[working_batch_id] = kNN(X, Y, n, m, d, k);
         // res[working_batch_id].k = k;    // Override k
@@ -224,7 +223,7 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
 
         // wait for sending to finish,
         // so we can change the buffer Y
-        _v1_send_data_wait(mpi_request);
+        mpi_send_data_wait(mpi_request);
 
         // Copy the incoming batch to
         // the current batch.
@@ -249,8 +248,8 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
 
     // cilk_sync;  // Sync Index Offsetting
 
-    _v1_send_data_wait(mpi_request);
-    _v1_receive_data_wait(mpi_request);
+    mpi_send_data_wait(mpi_request);
+    mpi_receive_data_wait(mpi_request);
     // if(DEBUG_A)
     //     printf("-------(%d)-------\n", node_id);
 
@@ -303,7 +302,7 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
             
             // Receive M
             int m_buff[1];
-            _v1_receive_data_b_t(
+            mpi_receive_data_b_t(
                 MPI_MODE_KNN_COLLECTION_M, 
                 m_buff, 
                 1, 
@@ -324,7 +323,7 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
             // TODO: Maybe execute 2 concurrent receives
 
             int * indx_buff = (int*)malloc(m_buff[0]*k*sizeof(int));
-            _v1_receive_data_b_t(
+            mpi_receive_data_b_t(
                 MPI_MODE_KNN_COLLECTION_INDX, 
                 indx_buff,
                 m_buff[0]*k,
@@ -334,7 +333,7 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
             );
 
             double * dist_buff = (double*)malloc(m_buff[0]*k*sizeof(double));
-            _v1_receive_data_b_t(
+            mpi_receive_data_b_t(
                 MPI_MODE_KNN_COLLECTION_DIST, 
                 dist_buff,
                 m_buff[0]*k,
@@ -368,7 +367,7 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
         {
             // m
             int m_buff[] = { res[i].m };
-            _v1_send_data_b_t(
+            mpi_send_data_b_t(
                 MPI_MODE_KNN_COLLECTION_M, 
                 m_buff,
                 1,
@@ -378,7 +377,7 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
             );
 
             // nidx
-            _v1_send_data_b_t(
+            mpi_send_data_b_t(
                 MPI_MODE_KNN_COLLECTION_INDX, 
                 res[i].nidx,
                 res[i].m*k,
@@ -388,7 +387,7 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
             );
 
             // ndist
-            _v1_send_data_b_t(
+            mpi_send_data_b_t(
                 MPI_MODE_KNN_COLLECTION_DIST, 
                 res[i].ndist,
                 res[i].m*k,
@@ -405,8 +404,8 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
     // Nodes other than master have finished
     if(node_id>0)
     {
-        _v1_send_data_wait(mpi_request);
-        _v1_receive_data_wait(mpi_request);
+        mpi_send_data_wait(mpi_request);
+        mpi_receive_data_wait(mpi_request);
         mpi_finish_local();
     }
 

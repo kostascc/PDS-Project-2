@@ -10,8 +10,8 @@ auxlib:
 	$(CC) $(CFLAGS) -shared -o libauxlib.so auxlib.o -fcilkplus
 
 knn_v0:
-	$(CC) $(CFLAGS) -c -fpic knn_v0.c -fcilkplus
-	$(CC) $(CFLAGS) -shared -o libknn_v0.so knn_v0.o -fcilkplus
+	$(CILKCC) $(CFLAGS) -c -fpic knn_v0.c -fcilkplus
+	$(CILKCC) $(CFLAGS) -shared -o libknn_v0.so knn_v0.o -fcilkplus
 
 knn_v1:
 	$(MPICC) $(CFLAGS) -c -fpic knn_v1.c -fcilkplus 
