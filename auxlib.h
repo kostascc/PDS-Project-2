@@ -43,17 +43,27 @@
 /**
  * Startup Script Options
  **/
-#define MATRIX_PRINT  true  // Print Resulting X & Y
+#define MATRIX_PRINT  false  // Print Resulting X & Y
 #define RAND_SEED     false // Use seed for randomization
 #define MAX_VECTOR    40.0  // Max distance vector
 
 
+/**
+ * Each external variable should
+ * be defined both in .c and .h files.
+ **/
 
 /**
  * True if V1 is running.
  * Default: False.
  **/
 extern bool _MODE_V1_RUNNING ;
+
+/**
+ * True if V2 is running.
+ * Default: False.
+ **/
+extern bool _MODE_V2_RUNNING ;
 
 /**
  * Print kNN Neighbors result.
@@ -141,5 +151,25 @@ void print_res(knnresult knn);
  * Startup Script
  **/
 _runtime startup(int argc, char** argv);
+
+// TODO: For Debugging, Remove later
+extern int tmp_node_id;
+
+/*!
+ *  For Worker nodes, it receives results from previous nodes,
+ * compares them to the local KNNs, and propagates the
+ * best results clockwise.
+ * For the Master node, it receives results from the last
+ * worker node and returnes the best results in 'fin'. 
+ * Warning: The 'm' & 'k' in each knnresult should be
+ * correct.
+ * @param res KNN Result Array
+ * @param fin Final KNN result
+ * @param node_id Local Node ID
+ * @param receive_node Node to receive from
+ * @param result_count Results to receive (in this case the batch count)
+**/
+void collect_n_propagate_knn(knnresult* res, knnresult* fin, int node_id, int receive_node, int send_node, int result_count);
+
 
 #endif

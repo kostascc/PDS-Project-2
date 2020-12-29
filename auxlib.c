@@ -1,13 +1,40 @@
 #include "auxlib.h"
 
 
-extern bool _MODE_V1_RUNNING = false;
+/**
+ * Each external variable should
+ * be defined both in .c and .h files.
+ **/
 
-extern bool _KNN_PRINT = false;
+/**
+ * True if V1 is running.
+ * Default: False.
+ **/
+extern bool _MODE_V1_RUNNING = false ;
 
-extern bool _DIST_PRINT = false;
+/**
+ * True if V2 is running.
+ * Default: False.
+ **/
+extern bool _MODE_V2_RUNNING = false ;
 
-extern bool _TIMER_PRINT = true;
+/**
+ * Print kNN Neighbors result.
+ * Default: False.
+ **/
+extern bool _KNN_PRINT = false ;
+
+/**
+ * Print calculated distance matrix.
+ * Default: False.
+ **/
+extern bool _DIST_PRINT = false ;
+
+/**
+ * Print timing information.
+ * Default: true.
+ **/
+extern bool _TIMER_PRINT = true ;
 
 
 
@@ -585,3 +612,13 @@ _runtime startup(int argc, char** argv)
 }
 
 
+
+extern int tmp_node_id=-1;
+
+
+void collect_n_propagate_knn(knnresult* res, knnresult* fin, int node_id, int receive_node, int send_node, int result_count)
+{
+    printf("in (%d) res[0].nidx[0] = %d\n",tmp_node_id ,res[1].nidx[2]);
+
+    return;
+}
