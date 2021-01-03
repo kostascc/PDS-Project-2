@@ -187,23 +187,24 @@ void aux_merge( double ** _I, int ** _J,
 
 
 
-void print_res(knnresult knn)
+void print_res(knnresult* knn)
 {
-        for(int i=0; i<knn.m; i++)
-        {
-            printf("%d\nindx:", i);
-            for(int j=0; j<knn.k; j++)
-            {
-                printf("%6d,", knn.nidx[i*knn.k+j]);
-            }
-            printf("\ndist:");
-            for(int j=0; j<knn.k; j++)
-            {
-                printf("%6.2f,", (double) (knn.ndist[i*knn.k+j]));
-            }
 
-            printf("\n");
+    for(int i=0; i<knn->m; i++)
+    {
+        printf("%d\nindx:", i);
+        for(int j=0; j<knn->k; j++)
+        {
+            printf("%6d,", knn->nidx[i*(knn->k)+j]);
         }
+        printf("\ndist:");
+        for(int j=0; j<knn->k; j++)
+        {
+            printf("%6.2f,", (double) (knn->ndist[i*(knn->k)+j]));
+        }
+
+        printf("\n");
+    }
 
 }
 
@@ -616,9 +617,361 @@ _runtime startup(int argc, char** argv)
 extern int tmp_node_id=-1;
 
 
-void collect_n_propagate_knn(knnresult* res, knnresult* fin, int node_id, int receive_node, int send_node, int result_count)
+void collect_n_propagate_knn(knnresult* res, knnresult* fin, int node_id, int node_receive, int node_send, int result_count)
 {
-    printf("in (%d) res[0].nidx[0] = %d\n",tmp_node_id ,res[1].nidx[2]);
+    /**
+     * Data Collection:
+     * 
+     * Worker nodes should receive the
+     * kNN result of the previous node
+     * (except node=1, doesn't receive)
+     * and compare/update with the local
+     * results. Next, the receiving nodes
+     * should send the result to the next
+     * node in the ring.
+     * 
+     * Master node only receives and compares.
+     * All worker nodes have finished
+     * after they have sent their kNN
+     * results.
+     * 
+     * The result tranfered is a single 
+     * kNN result, therefore a loop is
+     * used to account for all batches of
+     * Query points.
+     **/
+
+
+    if(fin==NULL || res==NULL)
+        mpi_abort_msg("fin or res were NULL (collect_n_propagate_knn)");
+    
+    if(fin->m == NULL || fin->m <0)
+        mpi_abort_msg("Illegal or NULL m (collect_n_propagate_knn)");
+
+    if(fin->k == NULL || fin->k < 0)
+        mpi_abort_msg("Illegal or NULL k (collect_n_propagate_knn)");
+    
+    int n_all = fin->m;
+    int k = fin->k;
+
+    int m_all = 0;  // Used to test points imported
+
+    // Cluster Size = Result Count = Batch Count
+    int cluster_size = result_count;    
+
+    // Request array for receive and send
+    MPI_Request mpi_request[2];
+
+    
+    // mpi_finish_local();
+    // printf("n: %d, k: %d\n", n_all, k);
+
+
+    // wait( (float)rand()/(float)(RAND_MAX/2) );
+
+    // printf("******\nNode: %d:\n", node_id);
+    // for(int i=0; i<result_count; i++)
+    // {
+    //     print_res(&res[i]);
+    // }
+
+
+
+
+
+    // Nodes that receive
+    if(node_id!=1)
+    {
+
+        // For each batch
+        for(int i=0; i<cluster_size; i++)
+        {
+            // TODO: Remove m receiving,
+            // We already know m is n_all/cluster_size.
+            // The last one will have locally the same
+            // m plus n_all%cluster_size.
+            
+            // Receive M
+            int m_buff[1];
+            mpi_receive_data_b_t(
+                MPI_MODE_KNN_COLLECTION_M, 
+                m_buff, 
+                1, 
+                node_receive, 
+                MPI_INT, 
+                mpi_request
+            );
+
+            m_all += m_buff[0];
+            // if(DEBUG_A)
+                // printf("[%d] batch: %d, m: %d\n", node_id, i, m_buff[0]);
+
+            // if(m_buff[0] < 0)
+            // {
+            //     printf("M received from node %d on node %d was illegal!\n");
+            //     exit(EXIT_FAILURE);
+            // }
+
+            // TODO: Maybe execute 2 concurrent receives
+
+            int * indx_buff = (int*)malloc(m_buff[0]*k*sizeof(int));
+            mpi_receive_data_b_t(
+                MPI_MODE_KNN_COLLECTION_INDX, 
+                indx_buff,
+                m_buff[0]*k,
+                node_receive,
+                MPI_INT,
+                mpi_request
+            );
+
+            double * dist_buff = (double*)malloc(m_buff[0]*k*sizeof(double));
+            mpi_receive_data_b_t(
+                MPI_MODE_KNN_COLLECTION_DIST, 
+                dist_buff,
+                m_buff[0]*k,
+                node_receive,
+                MPI_DOUBLE,
+                mpi_request
+            );
+
+            knnresult* res_tmp = malloc(sizeof(knnresult));
+            res_tmp->ndist = dist_buff;
+            res_tmp->nidx  = indx_buff;
+            res_tmp->m     = m_buff[0];
+            res_tmp->k     = k;
+
+            cilk_spawn compare_knnresult(&res[i], res_tmp);
+
+        }
+
+        cilk_sync;
+            
+    }//end: if(node_id>1)
+
+
+    // nodes that send
+    if(node_id!=0)
+    {
+        // TODO: Move sending right after calculation
+        // to make it async.
+
+        // Send results to next node
+        for(int i=0; i<cluster_size; i++)
+        {
+            // m
+            int m_buff[] = { res[i].m };
+            mpi_send_data_b_t(
+                MPI_MODE_KNN_COLLECTION_M, 
+                m_buff,
+                1,
+                node_send,
+                MPI_INT,
+                mpi_request
+            );
+
+            // nidx
+            mpi_send_data_b_t(
+                MPI_MODE_KNN_COLLECTION_INDX, 
+                res[i].nidx,
+                res[i].m*k,
+                node_send,
+                MPI_INT,
+                mpi_request
+            );
+
+            // ndist
+            mpi_send_data_b_t(
+                MPI_MODE_KNN_COLLECTION_DIST, 
+                res[i].ndist,
+                res[i].m*k,
+                node_send,
+                MPI_DOUBLE,
+                mpi_request
+            );
+
+        }
+    }
+
+    // printf("m_all:%d\n", m_all);
+    // if(m_all != n_all && node_id!=1)
+    //     mpi_abort_msg("Received Query Point results were wrong");
+
+    // Nodes other than master have finished
+    if(node_id>0)
+    {
+        mpi_send_data_wait(mpi_request);
+        // mpi_receive_data_wait(mpi_request);
+        return;
+    }
+
+
+    // Only Master node continues here
+
+    // Concetrate results on a single knnresult
+
+    double* knn_ndist = (double*) malloc(m_all*k*sizeof(double));
+    int* knn_nidx     =    (int*) malloc(m_all*k*sizeof(int))   ;
+
+    if(knn_ndist==NULL)
+        mpi_abort_msg("Malloc Failed (knn_ndist in collect_n_propagate_knn)");
+    if(knn_nidx==NULL)
+        mpi_abort_msg("Malloc Failed (knn_nidx in collect_n_propagate_knn)");
+            
+    
+
+    for(int i=0; i<cluster_size; i++)
+    {
+
+        int lgth = (i==cluster_size-1) ? 
+            (n_all/cluster_size)+n_all%cluster_size : 
+            n_all/cluster_size ;
+
+        // wait( (float)rand()/(float)(RAND_MAX) );
+        // printf("Node: %d\n", node_id);
+        // printf("\ni %d\n", i);
+        // printf("--indxx:\n");
+        // for(int j=0; j<res[i].m; j++)
+        // {
+        //     printf("  ");
+        //     for(int p=0; p<res[i].k; p++){
+        //         printf("%d, ", res[i].nidx[j*res[i].k + p]);
+        //     }
+        //     printf("\n");
+        // }
+        // printf("\n");
+
+        // printf("--distx:\n");
+        // for(int j=0; j<res[i].m; j++)
+        // {
+        //     printf("  ");
+        //     for(int p=0; p<res[i].k; p++){
+        //         printf("%.2f, ", res[i].ndist[j*res[i].k + p]);
+        //     }
+        //     printf("\n");
+
+        // }
+        // printf("\n");
+        // printf("--lgth:%d\n", lgth);
+
+        // Copy batch ndist
+        cilk_spawn memcpy(
+            &knn_ndist[ i*k*(n_all/cluster_size) ],
+            &(res[i].ndist[0]),
+            res[i].k * res[i].m * sizeof(double)
+        );
+
+        // Copy batch nidx
+        cilk_spawn memcpy(
+            &knn_nidx[ i*k*(n_all/cluster_size) ],
+            &(res[i].nidx[0]),
+            res[i].k * res[i].m * sizeof(int)
+        );
+
+    }
+
+    cilk_sync; // Sync result concetration
+
+    // knnresult knn;
+    fin->m = n_all;
+    fin->k = k;
+    fin->ndist = knn_ndist;
+    fin->nidx = knn_nidx;
 
     return;
+}
+
+
+void knnresult_check_offset(knnresult* res, const int min, const int max)
+{
+    int mmin = max;
+    int mmax = min;
+
+    for(int i=0; i<res->m * res->k; i++)
+    {
+        if(res->nidx[i]>mmax)
+            mmax = res->nidx[i];
+
+        if(res->nidx[i]<mmin)
+            mmin = res->nidx[i];
+    }
+
+    if(mmin<min || mmax>max)
+        {
+            printf("Offset Check Failed! mmin: %d (%d)\nmmax: %d (%d)\n", mmin, min, mmax, max);
+            mpi_abort_msg("Offset Check");
+        }
+    
+}
+
+void knnresult_check_batch(double *Y, double *X, int length, int offset)
+{
+    // m = n * d
+    for(int i=0; i<length; i++)
+    {
+        if(Y[i] != X[i+offset])
+        {
+            printf("Batch Check Failed! (found:%.2f, correct:%.2f , length:%d, offset:%d, i:%d)\n", Y[i], X[i+offset], length, offset, i);
+            mpi_abort_msg("Batch Check");
+        }
+    }
+}
+
+
+void knnresult_offset_nidx(knnresult* res, int offset)
+{
+    for(int i=0; i<res->m * res->k; i++)
+    {
+        res->nidx[i] += offset;
+    }
+}
+
+
+int n_per_node(int node_id, int cluster_size, int n)
+{
+
+    int ret = (n/cluster_size);
+    if(node_id == cluster_size-1)
+    {
+        return ret + n%cluster_size;
+    }
+    return ret;
+}
+
+
+void compare_knnresult(knnresult* res, knnresult* res_)
+{
+
+    res->m = (res->m > res_->m)? res->m : res_->m ;
+
+    int alloc = 2*res->k;
+
+
+    for(int m = 0; m<res->m; m++)
+    {
+
+        double * distm 	= (double *) malloc(alloc*sizeof(double));
+        int * idxm 		= (int *)    malloc(alloc*sizeof(int));
+
+        for(int i=0; i<res->k; i++)
+        {
+            distm[i] = (double) res->ndist[m*res->k+i];
+            idxm[i]  =    (int) res->nidx[m*res->k+i] ;
+        }
+
+        for(int i=0; i<res_->k; i++)
+        {
+            distm[i+res->k] = (double) res_->ndist[m*res->k+i];
+            idxm[i+res->k]  =    (int) res_->nidx[m*res->k+i] ;
+        }
+
+        aux_mergeSort(&distm, &idxm, alloc);
+
+        for(int i=0; i<res->k; i++)
+        {
+            res->ndist[m*res->k+i] = (double) distm[i];
+            res->nidx[m*res->k+i]  =    (int) idxm[i] ;
+        }
+
+    }
+
 }

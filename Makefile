@@ -6,12 +6,12 @@ CFLAGS=-O3
 default: all
 
 auxlib:
-	$(CC) $(CFLAGS) -c -fpic auxlib.c -fcilkplus
-	$(CC) $(CFLAGS) -shared -o libauxlib.so auxlib.o -fcilkplus
+	$(MPICC) $(CFLAGS) -c -fpic auxlib.c -fcilkplus
+	$(MPICC) $(CFLAGS) -shared -o libauxlib.so auxlib.o -fcilkplus
 
 knn_v0:
-	$(CILKCC) $(CFLAGS) -c -fpic knn_v0.c -fcilkplus
-	$(CILKCC) $(CFLAGS) -shared -o libknn_v0.so knn_v0.o -fcilkplus
+	$(MPICC) $(CFLAGS) -c -fpic knn_v0.c -fcilkplus
+	$(MPICC) $(CFLAGS) -shared -o libknn_v0.so knn_v0.o -fcilkplus
 
 knn_v1:
 	$(MPICC) $(CFLAGS) -c -fpic knn_v1.c -fcilkplus 
@@ -46,9 +46,12 @@ main:
 	knn_v1.o knn_v2.o mmio.o mmarket.o mat.o mpi_wrapper.o \
 	-lopenblas -fcilkplus -fopenmp -lpthread -lm
 
-all: auxlib mpi_wrapper mmio mat mmarket knn_v0 knn_v1 knn_v2 main
+all: auxlib mpi_wrapper mmio mat mmarket knn_v0 knn_v1 knn_v2 main tester
 
 .PHONY: all test clean
+
+tester: 
+	$(CC) $(CFLAGS) -o tester.o tester.c
 
 test:
 	./main.o $(ARGS)

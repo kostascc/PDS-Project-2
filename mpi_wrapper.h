@@ -17,26 +17,32 @@
 
 
 /**
- * Initialize MPI Communications
- **/
+ * @brief Initializes MPI Communications
+ * 
+ * @param node_id 
+ * @param cluster_size 
+ */
 void mpi_initialize(int* node_id, int* cluster_size);
 
 /**
- * Aborts MPI Execution in COMM_WORLD.
+ * @brief Aborts MPI Execution in COMM_WORLD.
  * (The Whole job stops)
  **/
 void mpi_abort();
 
+
 /**
- * Aborts MPI Execution in COMM_WORLD,
+ * @brief Aborts MPI Execution in COMM_WORLD,
  * with an error message.
  * (The Whole job stops)
- **/
+ * 
+ * @param msg 
+ */
 void mpi_abort_msg(char* msg);
 
 /**
- * Finishes local job silently.
- **/
+ * @brief Finishes local job silently
+ */
 void mpi_finish_local();
 
 
@@ -59,58 +65,124 @@ void mpi_finish_local();
  * 
  **/
 
+
 /**
- * Non-Blocking Send with DataType.
- **/
+ * @brief Non-Blocking Send with DataType.
+ * 
+ * @param code 
+ * @param Y 
+ * @param m 
+ * @param partner 
+ * @param type 
+ * @param request 
+ */
 void mpi_send_data_nb_t(int code, double* Y, int m, int partner, MPI_Datatype type, MPI_Request request[]);
 
+
 /**
- * Non-Blocking Receive with DataType.
- **/
+ * @brief Non-Blocking Receive with DataType.
+ * 
+ * @param code 
+ * @param Z 
+ * @param m 
+ * @param partner 
+ * @param type 
+ * @param request 
+ */
 void mpi_receive_data_nb_t(int code, double* Z, int m, int partner, MPI_Datatype type, MPI_Request request[]);
 
+
 /**
- * Non-Blocking Send,
+ * @brief Non-Blocking Send,
  * with default DataType: Double.
- **/
+ * 
+ * @param code 
+ * @param Y 
+ * @param m 
+ * @param partner 
+ * @param request 
+ */
 void mpi_send_data_nb(int code, double* Y, int m, int partner, MPI_Request request[]);
 
+
 /**
- * Non-Blocking Receive,
+ * @brief Non-Blocking Receive,
  * with default DataType: Double.
- **/
+ * 
+ * @param code 
+ * @param Z 
+ * @param m 
+ * @param partner 
+ * @param request 
+ */
 void mpi_receive_data_nb(int code, double* Z, int m, int partner, MPI_Request request[]);
 
+
 /**
- * Blocks until send has finished.
- **/
+ * @brief Blocks until send has finished.
+ * 
+ * @param request 
+ */
 void mpi_send_data_wait(MPI_Request request[]);
 
+
 /**
- * Blocks until receive has finished.
- **/
+ * @brief Blocks until receive has finished.
+ * 
+ * @param request 
+ */
 void mpi_receive_data_wait(MPI_Request request[]);
 
+
 /**
- * Blocking Send,
+ * @brief Blocking Send,
  * with default DataType: Double.
- **/
+ * 
+ * @param code 
+ * @param Y 
+ * @param m 
+ * @param partner 
+ * @param request 
+ */
 void mpi_send_data_b(int code, double* Y, int m, int partner, MPI_Request request[]);
 
+
 /**
- * Blocking Receive,
+ * @brief Blocking Receive,
  * with default DataType: Double.
- **/
+ * 
+ * @param code 
+ * @param Z 
+ * @param m 
+ * @param partner 
+ * @param request 
+ */
 void mpi_receive_data_b(int code, double* Z, int m, int partner, MPI_Request request[]);
 
-/**
- * Blocking Send with DataType.
- **/
-void mpi_send_data_b_t(int code, double* Y, int m, int partner, MPI_Datatype type, MPI_Request request[]);
 
 /**
- * Blocking Receive with DataType.
- **/
+ * @brief Blocking Send with DataType.
+ * 
+ * @param code 
+ * @param Y 
+ * @param m 
+ * @param partner 
+ * @param type 
+ * @param request 
+ */
+void mpi_send_data_b_t(int code, double* Y, int m, int partner, MPI_Datatype type, MPI_Request request[]);
+
+
+/**
+ * @brief Blocking Receive with DataType.
+ * 
+ * @param code 
+ * @param Z 
+ * @param m 
+ * @param partner 
+ * @param type 
+ * @param request 
+ */
 void mpi_receive_data_b_t(int code, double* Z, int m, int partner, MPI_Datatype type, MPI_Request request[]);
 
 /*********************************************/

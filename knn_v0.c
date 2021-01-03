@@ -151,7 +151,7 @@ knnresult kNN(double * X, double * Y, int n, int m, int d, int k)
      *      (Nx1) + (NxM)
      ***************************/
 
-    cilk_for(int i=0; i<n; i++)
+    for(int i=0; i<n; i++)
     {
         double d_tmp = D1[i];
         cilk_for(int j=0; j<m; j++)
@@ -338,9 +338,9 @@ knnresult kNN(double * X, double * Y, int n, int m, int d, int k)
 		aux_sort_idx(&D2T, &res.nidx, &res.ndist, n, m, mm, k);
 	}
     
-
     // free(CT);
-
+    
+    // cilk_sync;
 
     if(!_MODE_V1_RUNNING)
         free(D2T);
@@ -351,7 +351,8 @@ knnresult kNN(double * X, double * Y, int n, int m, int d, int k)
      **/
     if(_KNN_PRINT&&!_MODE_V1_RUNNING)
     {
-        print_res(res);
+        // TODO: Fix The references
+        print_res(&res);
     }
 
 

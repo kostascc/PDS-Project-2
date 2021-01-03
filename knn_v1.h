@@ -9,10 +9,10 @@
 /**********************************************
  *            Debugging Options
  **********************************************/
-#define DEBUG_A                         true
+#define DEBUG_A                         false
 #define DEBUG_RES_I                     false
-#define DEBUG_CHK_BATCH                 true
-#define DEBUG_CHK_OFFSET                true
+#define DEBUG_CHK_BATCH                 false
+#define DEBUG_CHK_OFFSET                false
 /**********************************************/
 
 
@@ -39,34 +39,34 @@
 knnresult distrAllkNN(double * X, int n, int d, int k);
 
 
-/**
- * Checks for indexes (can be used to check
- * correct index offsetting based
- * on node i).
- **/
-void _v1_check_offset(knnresult res, const int min, const int max);
+// /**
+//  * Checks for indexes (can be used to check
+//  * correct index offsetting based
+//  * on node i).
+//  **/
+// void knnresult_check_offset(knnresult res, const int min, const int max);
 
-/**
- * Checks Received Query Batch based on the
- * whole corpus.
- * length:'elements times dimensions'.
- * Offset: the correct point in which the
- * query can be found based on batch ID.
- **/
-void _v1_check_batch(double *Y, double *X, int length, int offset);
+// /**
+//  * Checks Received Query Batch based on the
+//  * whole corpus.
+//  * length:'elements times dimensions'.
+//  * Offset: the correct point in which the
+//  * query can be found based on batch ID.
+//  **/
+// void knnresult_check_batch(double *Y, double *X, int length, int offset);
 
-/**
- * Offsets indexes based on node ID.
- **/
-void _v1_offset_nidx(knnresult* res, int offset);
+// /**
+//  * Offsets indexes based on node ID.
+//  **/
+// void knnresult_offset_nidx(knnresult* res, int offset);
 
-/**
- * Returns the number of corpus elements that
- * shouuld be saved in a node (node ID), thus 
- * equally the number of query points 
- * per batch (batch ID).
- **/
-int _v1_n_per_node(int node_id, int cluster_size, int n);
+// /**
+//  * Returns the number of corpus elements that
+//  * shouuld be saved in a node (node ID), thus 
+//  * equally the number of query points 
+//  * per batch (batch ID).
+//  **/
+// int n_per_node(int node_id, int cluster_size, int n);
 
 /**
  * Compare the results of different nodes on the same
@@ -74,7 +74,7 @@ int _v1_n_per_node(int node_id, int cluster_size, int n);
  * res  : Resulting data.
  * res_ : Comparison data.
  **/
-void _v1_compare_knnresult(knnresult* res, knnresult* res_);
+// void compare_knnresult(knnresult* res, knnresult* res_);
 
 
 #endif
