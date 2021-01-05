@@ -2,7 +2,13 @@
 #include <unistd.h>  /* _exit, fork */
 #include <stdlib.h>  /* exit */
 #include <errno.h>   /* errno */
- 
+
+
+
+// This only tests the quickest functions
+// It doesn't auxlib's result distribution
+// #define TEST_ONLY_MPI
+
 
 
 int main(int argc, char **argv)
@@ -28,6 +34,7 @@ int main(int argc, char **argv)
   putenv("TIMER_PRINT=0");
 
 
+  #ifndef TEST_ONLY_MPI
 
   /*********
    * V0
@@ -85,6 +92,7 @@ int main(int argc, char **argv)
       exit(EXIT_FAILURE);
   }
 
+  #endif
   
   
   /*********
@@ -201,6 +209,7 @@ int main(int argc, char **argv)
   }
 
 
+  #ifndef TEST_ONLY_MPI
 
   /*********
    * Compare V0 - V1
@@ -248,13 +257,14 @@ int main(int argc, char **argv)
       exit(EXIT_FAILURE);
   }
 
+  #endif
 
   /*********
-   * Compare V0 - V2
+   * Compare V1 - V2
    *********/
   if (!fork())
   {
-    printf("Comparing: V0 to V2\n");
+    printf("Comparing: V1 to V2\n");
 
     int offset = 0, size = -1;
 
@@ -266,8 +276,8 @@ int main(int argc, char **argv)
     offset += size;
     
     // Export File
-    size = strlen(exp_v0);
-    memcpy(&cmd[offset], exp_v0, size*sizeof(char));
+    size = strlen(exp_v1);
+    memcpy(&cmd[offset], exp_v1, size*sizeof(char));
     offset += size;
 
     // Export File
@@ -299,46 +309,4 @@ int main(int argc, char **argv)
 
   printf("\n Tests Successful!\n");
 
-
-    
-//    pid_t  pid;
- 
-//    pid = fork();
-//    if (pid == 0)
-//    {
-//       /* Θυγατρική διεργασία:
-//        * Όταν η fork() επιστρέφει 0, τότε ο εκτελούμενος κώδικας είναι της θυγατρικής διεργασίας
-//        *
-//        * Μέτρηση ως το δέκα, ανά δευτερόλεπτο
-//        */
-//       int j;
-//       for (j = 0; j < 10; j++)
-//       {
-//          printf("child: %d\n", j);
-//          sleep(2);
-//       }
-//       _exit(0);  /* Δεν χρησιμοποιείται η exit() αλλά η _exit(0) η οποία δεν καλεί χειριστές εξόδου */
-//    }
-//    else if (pid > 0)
-//    { 
-//       /* Μητρική διεργασία:
-//        * Όταν η fork() επιστρέφει θετικό ακέραιο, τότε ο εκτελούμενος κώδικας είναι της μητρικής διεργασίας και ο ακέραιος το αναγνωριστικό της μόλις κατασκευασθείσας διεργασίας
-//        */
-//       int i;
-//       for (i = 0; i < 10; i++)
-//       {
-//          printf("parent: %d\n", i);
-//          sleep(1);
-//       }
-//       exit(0);
-//    }
-//    else
-//    {   
-//       /* Σφάλμα
-//        * Όταν μία κλήση συστήματος επιστρέφει αρνητικό αριθμό, κάποιο σφάλμα έχει συμβεί
-//        * (π.χ. το σύστημα έχει φτάσει στο επιτρεπτό πλήθος διεργασιών).
-//        */
-//       fprintf(stderr, "can't fork, error %d\n", errno);
-//       exit(1);
-//    }
 }
