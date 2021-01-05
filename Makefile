@@ -46,12 +46,14 @@ main:
 	knn_v1.o knn_v2.o mmio.o mmarket.o mat.o mpi_wrapper.o \
 	-lopenblas -fcilkplus -fopenmp -lpthread -lm
 
-all: auxlib mpi_wrapper mmio mat mmarket knn_v0 knn_v1 knn_v2 main tester
-
-.PHONY: all test clean
-
 tester: 
 	$(CC) $(CFLAGS) -o tester.o tester.c
+
+all: prog tester
+
+prog: auxlib mpi_wrapper mmio mat mmarket knn_v0 knn_v1 knn_v2 main
+
+.PHONY: all test clean
 
 test:
 	./main.o $(ARGS)

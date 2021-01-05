@@ -5,9 +5,10 @@
 
 
 
-// This only tests the quickest functions
-// It doesn't auxlib's result distribution
-// #define TEST_ONLY_MPI
+// This only tests V1 and V2.
+// It doesn't check auxlib's result 
+// distribution.
+#define TEST_ONLY_MPI
 
 
 
@@ -15,7 +16,7 @@ int main(int argc, char **argv)
 {
 
   const char* run_seq = "./main.o \0"; // size: 9
-  const char* run_mpi = "mpirun -np 5 main.o \0"; // size: 20
+  const char* run_mpi = "mpirun -np 3 main.o \0"; // size: 20
 
   const char* file_append = " > \0";
 

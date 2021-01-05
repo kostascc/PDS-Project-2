@@ -300,7 +300,7 @@ _runtime startup(int argc, char** argv)
             //     __threads = _tmp_int;
             //     continue;
             // }
-            printf("-t Parameter Deprecated: Please use 'export CILK_NWORKERS=_' instead.\n");
+            printf("-t Parameter Deprecated: Use 'export CILK_NWORKERS=___' instead.\n");
         }
 
 
@@ -854,14 +854,14 @@ void collect_n_propagate_knn(knnresult* res, knnresult* fin, int node_id, int no
         // printf("--lgth:%d\n", lgth);
 
         // Copy batch ndist
-        cilk_spawn memcpy(
+        memcpy(
             &knn_ndist[ i*k*(n_all/cluster_size) ],
             &(res[i].ndist[0]),
             res[i].k * res[i].m * sizeof(double)
         );
 
         // Copy batch nidx
-        cilk_spawn memcpy(
+        memcpy(
             &knn_nidx[ i*k*(n_all/cluster_size) ],
             &(res[i].nidx[0]),
             res[i].k * res[i].m * sizeof(int)
@@ -869,7 +869,7 @@ void collect_n_propagate_knn(knnresult* res, knnresult* fin, int node_id, int no
 
     }
 
-    cilk_sync; // Sync result concetration
+    //cilk_sync; // Sync result concetration
 
     // knnresult knn;
     fin->m = n_all;
@@ -883,6 +883,8 @@ void collect_n_propagate_knn(knnresult* res, knnresult* fin, int node_id, int no
 
 void knnresult_check_offset(knnresult* res, const int min, const int max)
 {
+    return; // Disable
+
     int mmin = max;
     int mmax = min;
 
@@ -896,15 +898,17 @@ void knnresult_check_offset(knnresult* res, const int min, const int max)
     }
 
     if(mmin<min || mmax>max)
-        {
-            printf("Offset Check Failed! mmin: %d (%d)\nmmax: %d (%d)\n", mmin, min, mmax, max);
-            mpi_abort_msg("Offset Check");
-        }
+    {
+        printf("Offset Check Failed! mmin: %d (%d)\nmmax: %d (%d)\n", mmin, min, mmax, max);
+        mpi_abort_msg("Offset Check");
+    }
     
 }
 
 void knnresult_check_batch(double *Y, double *X, int length, int offset)
 {
+    return; // Disable
+
     // m = n * d
     for(int i=0; i<length; i++)
     {
@@ -919,9 +923,10 @@ void knnresult_check_batch(double *Y, double *X, int length, int offset)
 
 void knnresult_offset_nidx(knnresult* res, int offset)
 {
+    int* ptr = (res->nidx);
     for(int i=0; i<res->m * res->k; i++)
     {
-        res->nidx[i] += offset;
+        *(ptr + i) += offset;
     }
 }
 

@@ -72,15 +72,6 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
     MPI_Request mpi_request[2];
 
 
-    // char padd[cluster_size*2];
-    // padd[0] = '\0';
-    // for(int i=0; i<2*node_id; i++)
-    // {
-    //     padd[i] = ' ';
-    //     padd[i+1] = '\0';
-    // }
-
-
     /**
      * TODO: Give option for local corpus
      * loading instead of MPI Based.
@@ -189,6 +180,8 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
     knnresult* knn = (knnresult*)malloc(sizeof(knnresult));
     knn->m = n_all;
     knn->k = k;
+
+    cilk_sync;  // knnresult_offset_nidx(...)
 
     /**
      * Collects KNN results from other nodes, compares and

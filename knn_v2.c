@@ -1,17 +1,7 @@
 #include "knn_v2.h"
 
-#define DEBUG_VPSEARCH false
-#define DEBUG_VPTREE false
 
-
-/**
- * TODO: The cilk_for keyword makes the whole file's 
- * documentation unuseable. This definition converts
- * the code to sequential but fixes the issue.
- * Remove before Timing!!!
- */
-// #define cilk_for for
-
+int _saved = 0;
 
 knnresult distrAllkNNVPT(double * X, int n_all, int d, int k)
 {
@@ -121,32 +111,34 @@ knnresult distrAllkNNVPT(double * X, int n_all, int d, int k)
      **/
 
     VPTree *T   = (VPTree*) malloc( sizeof(VPTree)  );
-    idArr       = (int*)    malloc( n_per_node(node_id, cluster_size, n_all)*sizeof(int)   );
-    distArr     = (double*) malloc( n_per_node(node_id, cluster_size, n_all)*sizeof(double));
+    idx_arr       = (int*)    malloc( n_per_node(node_id, cluster_size, n_all)*sizeof(int)   );
+    dist_arr     = (double*) malloc( n_per_node(node_id, cluster_size, n_all)*sizeof(double));
 
     if(T==NULL)      mpi_abort_msg("Malloc Failed (T)");
-    if(idArr==NULL)  mpi_abort_msg("Malloc Failed (idArr)");
-    if(distArr==NULL)mpi_abort_msg("Malloc Failed (distArr)");
+    if(idx_arr==NULL)  mpi_abort_msg("Malloc Failed (idx_arr)");
+    if(dist_arr==NULL)mpi_abort_msg("Malloc Failed (dist_arr)");
     
     for(int i=0; i<n_per_node(node_id, cluster_size, n_all); i++) 
     {
-        idArr[i] = i;
+        idx_arr[i] = i;
     }
 
-    recursiveBuildTree(T, 0, n_per_node(node_id, cluster_size, n_all)-1);
+
+    _bin_leaf_count_max = BIN_LEAF_COUNT_MAX ;    // Leafs to save in bins
+    if( n/2 < _bin_leaf_count_max )
+        _bin_leaf_count_max = n/2+1;
+
+    build_tree(T, 0, n_per_node(node_id, cluster_size, n_all)-1);
     
     // Clear Up Tree Data
-    free(idArr);
-    idArr = NULL;
+    free(idx_arr);
+    idx_arr = NULL;
 
-    free(distArr);
-    distArr = NULL;
+    free(dist_arr);
+    dist_arr = NULL;
 
-
-    // wait( (float)rand()/(float)(RAND_MAX) );
     // if(DEBUG_VPTREE)
     //     print_vpt(T, 0);    // Print VP Tree for Debugging
-        
 
     // kNN Results per batch
     knnresult* result = (knnresult*)malloc(cluster_size*sizeof(knnresult));
@@ -210,7 +202,7 @@ knnresult distrAllkNNVPT(double * X, int n_all, int d, int k)
             _point->nidx  = (int*)malloc(k*sizeof(int));
             
             // Set Indexes to -1 for undefined
-            cilk_for(int kk=0; kk<K; kk++)
+            for(int kk=0; kk<K; kk++)
             {
                 _point->nidx[kk] = -1;
             }
@@ -219,13 +211,18 @@ knnresult distrAllkNNVPT(double * X, int n_all, int d, int k)
             // if(DEBUG_VPTREE)
             //     print_vpt(T, 0);    // Print VP Tree for Debugging
         
-            searchVPT(T, _point);
+            search_vpt(T, _point);
 
             // Offset resulting indexes
-            cilk_for(int i=0; i<k; i++)
-            {
-                _point->nidx[i] += node_offset;
-            }
+            // for(int i=0; i<k; i++)
+            // {
+            //     _point->nidx[i] += node_offset;
+            // }
+
+            /**
+             * TODO: Use Cilk Spawn for ofsetting
+             * cilk_spawn knnresult_offset_nidx(&(res[working_batch]), node_id*(n_all/cluster_size));
+             */
 
             // Add it into result[working_batch]
             cilk_for(int kk=0; kk<k; kk++)
@@ -242,6 +239,14 @@ knnresult distrAllkNNVPT(double * X, int n_all, int d, int k)
             // _point = NULL;
 
         }
+
+        
+        #ifdef CILK_SPAWN_INDEX_OFFSETTING
+            cilk_spawn 
+        #endif
+        
+        knnresult_offset_nidx(&(result[working_batch]), node_id*(n_all/cluster_size));
+
 
 
         // update working batch id
@@ -269,6 +274,10 @@ knnresult distrAllkNNVPT(double * X, int n_all, int d, int k)
     knn->k = k;
     knn->ndist = malloc(sizeof(double));
     knn->nidx = malloc(sizeof(int));
+
+    #ifdef CILK_SPAWN_INDEX_OFFSETTING
+        cilk_sync;  // knnresult_offset_nidx(...)
+    #endif
 
     /**
      * Collects KNN results from other nodes, compares and
@@ -321,6 +330,7 @@ knnresult distrAllkNNVPT(double * X, int n_all, int d, int k)
         printf(" > V2 took %f s\n", delta_us);
     }
 
+    // printf("Saved: %d\n", _saved);
 
     mpi_finalize();
     return *knn;
@@ -329,30 +339,13 @@ knnresult distrAllkNNVPT(double * X, int n_all, int d, int k)
 
 
 
-void search_work(VPTree* T, Point* p)
+
+void search_work_dist(double d_d, int d_i, Point* p)
 {
-
-    if(DEBUG_VPSEARCH)
-        printf("  Work, VP: %d (%5.2f), P: %d(%5.2f)\n", T->idx, T->vp[0], p->idx, p->coord[0]);
-    
-    double d_d = distance((double*)T->vp, (double*) p->coord); // VP-to-Point distance
-    int d_i = T->idx;   // VP index
-
     // Auxiliary variables for swaps
     double r_d;
     int r_i;
 
-    if(DEBUG_VPSEARCH)
-    {
-        printf("    Dist: %5.2f\n", (double)d_d);
-
-        printf("    neighbors_pre:{");
-        for(int i=0; i<K; i++)
-        {
-            printf("%2d[%5.2f],", p->nidx[i], p->ndist[i]);
-        }
-        printf("}\n");
-    }
 
     if( d_d < p->ndist[K-1] || p->nidx[K-1]<0 )    // VP distance is within the neighbors
     {
@@ -382,15 +375,46 @@ void search_work(VPTree* T, Point* p)
 
     }
 
-    if(DEBUG_VPSEARCH)
+}
+
+
+void search_work_bin(VPTree* T, Point* p)
+{
+    if(T->bin==NULL || T->bin_size<1)
     {
-        printf("    neighbors_pos:{");
-        for(int i=0; i<K; i++)
-        {
-            printf("%2d[%5.2f],", p->nidx[i], p->ndist[i]);
-        }
-        printf("}\n");
+        return;
     }
+    double *coord = (double*)malloc(D*sizeof(double));
+
+    // For each item in T's bin
+    for(int i=0; i<T->bin_size; i++)
+    {
+
+        memcpy(&coord[0], &T->bin[i*D], D*sizeof(double));
+
+        double d_d = distance((double*)coord, (double*)p->coord); // VP-to-Point distance
+        int d_i = T->bin_idx[i];   // VP index
+
+        search_work_dist(d_d, d_i, p);
+
+    }
+
+    free(coord);
+    
+    return;
+}
+
+
+
+void search_work_T(VPTree* T, Point* p)
+{
+    if(T==NULL)
+        return;
+
+    double d_d = distance((double*)T->vp, (double*) p->coord); // VP-to-Point distance
+    int d_i = T->idx;   // VP index
+
+    search_work_dist(d_d, d_i, p);
 
     return;
 }
@@ -408,7 +432,35 @@ double distance(double* p1, double* p2)
 }
 
 
-void searchVPT(VPTree* T, Point* p)
+enum sub_T_enum {inner = 1, outer = 0}; 
+
+bool check_intersection(VPTree* T, Point* p, enum sub_T_enum sub_T)
+{
+    return true;
+    if(sub_T == inner)
+    {
+        if(T->inner != NULL)
+            if(  T->inner->md > distance(T->vp, p->coord) )
+            {
+                _saved++;
+                return false;
+            }
+                
+    }
+    if(sub_T == outer)
+    {
+        if(T->outer != NULL)
+            if(  T->outer->md < distance(T->vp, p->coord) )
+            {
+                _saved++;
+                return false;
+            }
+                
+    }
+    return true;
+}
+
+void search_vpt(VPTree* T, Point* p)
 {
     
     // Check pointer are present
@@ -418,17 +470,23 @@ void searchVPT(VPTree* T, Point* p)
     // wait( (float)rand()/(float)(RAND_MAX/2) );
 
     // if(DEBUG_VPSEARCH)
-        // printf("(%d/%d) SearchVPT, T:%d, P:%d  (%5.2f)\n", tmp_node_id, tmp_batch_id, T->idx, p->idx, (p->coord)[0]);
+        // printf("(%d/%d) search_vpt, T:%d, P:%d  (%5.2f)\n", tmp_node_id, tmp_batch_id, T->idx, p->idx, (p->coord)[0]);
 
 
     // Finds distance of p from vp.
     // If distance is less than the most distant neighbor,
     // push vantage point into p's neighbors
-    search_work(T, p);
+    search_work_T(T, p);
     
 
     if(is_leaf(T))   // T has no children
     {
+        // As a last step for this branch, search
+        // at the leaf bin.
+        #ifdef USE_LEAF_BINS
+            search_work_bin(T, p);
+        #endif
+
         return ;
     }
     else    // T has children
@@ -445,24 +503,24 @@ void searchVPT(VPTree* T, Point* p)
                 // printf("...Inner\n");
 
             
-            searchVPT(T->inner, p);
+            search_vpt(T->inner, p);
 
             // TODO: ..
             // if( check_intersection )
             // {
-            // if(check_intersection(T, p))
-                searchVPT(T->outer, p);
+            if(check_intersection(T, p, outer))
+                search_vpt(T->outer, p);
         }
         else /* if ( distance(T->vp, p) > T->md  )*/
         {
             // if(DEBUG_VPSEARCH)
             //     printf("...Outer\n");
-            searchVPT(T->outer, p);
+            search_vpt(T->outer, p);
 
             // if( check_intersection )
             // {
-            // if(check_intersection(T, p))
-                searchVPT(T->inner, p);
+            if(check_intersection(T, p, inner))
+                search_vpt(T->inner, p);
             // }
         }
 
@@ -474,6 +532,8 @@ void searchVPT(VPTree* T, Point* p)
 
 
 
+
+
 void calc_distance(double *vp, int start, int end)
 {
     // Coordinates as [i][j] instead of [i*j_max+j]
@@ -482,14 +542,14 @@ void calc_distance(double *vp, int start, int end)
     // Squared Distance of each node
     for (int i=start; i<=end; i++)
     {
-        distArr[i] = sqrd(vp[0] - dataArr[idArr[i]][0]);
+        dist_arr[i] = sqrd(vp[0] - dataArr[idx_arr[i]][0]);
     }
 
     for (int i=start; i<=end; i++)
     {
         for (int j=1; j<D; j++)
         {
-            distArr[i] += sqrd(vp[j] - dataArr[idArr[i]][j]);
+            dist_arr[i] += sqrd(vp[j] - dataArr[idx_arr[i]][j]);
         }
     }
 
@@ -515,26 +575,26 @@ void swap_i(int* a, int* b)
 
 
 // Copied
-void quick_select(int kpos, double* distArr, int* idArr, int start, int end)
+void quick_select(int kpos, double* dist_arr, int* idx_arr, int start, int end)
 {
     int store=start;
-    double pivot=distArr[end];
+    double pivot=dist_arr[end];
     for (int i=start; i<=end; i++)
-        if (distArr[i] <= pivot)
+        if (dist_arr[i] <= pivot)
         {
-            swap_d(distArr+i, distArr+store);
-            swap_i   (idArr+i,   idArr+store);
+            swap_d(dist_arr+i, dist_arr+store);
+            swap_i   (idx_arr+i,   idx_arr+store);
             store++;
         }        
     store--;
     if (store == kpos) return;
-    else if (store < kpos) quick_select(kpos, distArr, idArr, store+1, end);
-    else quick_select(kpos, distArr, idArr, start, store-1);
+    else if (store < kpos) quick_select(kpos, dist_arr, idx_arr, store+1, end);
+    else quick_select(kpos, dist_arr, idx_arr, start, store-1);
 }
 
 
 
-void recursiveBuildTree(VPTree* node, int start, int end)
+void build_tree(VPTree* node, int start, int end)
 {
     
     /**
@@ -545,19 +605,80 @@ void recursiveBuildTree(VPTree* node, int start, int end)
      * TODO: Maye remove Square root to make it faster
      **/
     
+    /**
+     * Here Y is used for initializing coordinates,
+     * but during search X takes Y's place. The indices
+     * will/should be the same in both cases.
+     */
+
     // Get Node ID
-    node->idx = idArr[end];
+    node->idx = idx_arr[end];
 
     // Get Node Coordinates from Y
     node->vp = (double*)malloc(D*sizeof(double));
     memcpy((node->vp), &Y[node->idx*D], D*sizeof(double));
     
-    if (start==end)
+    
+    /**
+     * We either create a simple leaf node, or 
+     * a leaf node with a bin.
+     * Use '#define USE_LEAF_BINS' accordingly.
+     */
+    #ifndef USE_LEAF_BINS
+        if (start==end)
+    #else
+        if (start + _bin_leaf_count_max >= end)
+    #endif
     {
         // Initialize
         node->inner = NULL;
         node->outer = NULL;
         node->md = 0.0; 
+        
+        #ifdef USE_LEAF_BINS
+
+            /***************************************************************
+             * | ... |   Y[a]  |   Y[b]  | ... |   Y[c]  |  Y[d]   | ... |
+             * 
+             * | ... |  start  | start+1 | ... |  end-1  |   end   | ... |
+             *        ^~~~~~~~~~~~~~~~ bin ~~~~~~~~~~~~~^  ^~Leaf~^
+             *           ^^^^ bin idx offset 
+             * 
+             * bin size: end-start
+             * 
+             * For each Y[p]: p = idx_arr[start+q]
+             ***************************************************************/
+
+            node->bin = (double*)malloc( D*(end-start)*sizeof(double) );
+            node->bin_idx = (int*)malloc((end-start)*sizeof(double));
+            //memcpy( &(node->bin[0]), &Y[idx_arr[start]*D], D*(end-start)*sizeof(double) );
+            
+            // Add Each point from Y
+            for(int i=0; i<end-start; i++)
+            {
+                memcpy( &node->bin[i*D], &Y[ D*idx_arr[start+i] ], D*sizeof(double) );
+                node->bin_idx[i] = idx_arr[start+i];
+            }
+            
+            node->bin_size = end-start;
+
+            wait( (float)rand()/(float)(RAND_MAX/3) );
+
+            // printf("{ ");
+            // for(int i=0; i<node->bin_size; i++)
+            // {
+            //     printf("(%d)%6.2f ", node->bin_idx[i], node->bin[i]);
+            // }
+            // printf("} Leaf:%6.2f (Size: %d)\n\n", node->vp[0], node->bin_size);
+
+            // if(node->bin[(end-start)*D] != Y[(end-1)*D])
+            // {
+            //     printf("Size: %d\n", node->bin_size);
+            //     mpi_abort_msg("END Coord Wrong");
+            // }
+
+        #endif
+
         return;
     }
 
@@ -566,13 +687,13 @@ void recursiveBuildTree(VPTree* node, int start, int end)
     // Calculate distances to all other nodes
     calc_distance(node->vp, start, end);
     
-    quick_select( (start+end)/2, distArr, idArr, start, end );
+    quick_select( (start+end)/2, dist_arr, idx_arr, start, end );
 
-    // idArr is half inner and half outer points (from
+    // idx_arr is half inner and half outer points (from
     // the perspective of the median)
 
     // Median is the point found at half array length
-    node->md    = sqrt(distArr[ (start+end)/2 ]);
+    node->md    = sqrt(dist_arr[ (start+end)/2 ]);
 
     // Inner will continue constructing from the median backwards to the start
     node->inner = (VPTree*)malloc( sizeof(VPTree) );
@@ -580,10 +701,10 @@ void recursiveBuildTree(VPTree* node, int start, int end)
     // Outer will construct from the end backwards, up to the median
     node->outer = (VPTree*)malloc( sizeof(VPTree) );
 
-    recursiveBuildTree(node->inner, start, (start+end)/2);
+    build_tree(node->inner, start, (start+end)/2);
     if (end>start)
     {
-        recursiveBuildTree(node->outer, (start+end)/2 +1, end);
+        build_tree(node->outer, (start+end)/2 +1, end);
     }
     else 
     {

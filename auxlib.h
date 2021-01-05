@@ -18,7 +18,6 @@
 
 
 
-
 /**********************************************
  *          MPI Communication Tags
  **********************************************/
@@ -64,7 +63,7 @@
  **/
 #define MATRIX_PRINT  false  // Print Resulting X & Y
 #define RAND_SEED     false // Use seed for randomization
-#define MAX_VECTOR    1.0  // Max distance vector
+#define MAX_VECTOR    40.0  // Max distance vector
 
 
 /**
