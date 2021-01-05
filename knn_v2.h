@@ -41,15 +41,14 @@ int K;
 inline double sqrd(double x) {return x*x;}
 
 
-/*!
-    VP Tree Struct
-    @param vp Vantage point's Coordinates
-    @param md Vantage point's median distance
-    @param idx  Vantage point index
-    @param inner Left/Inner VP Tree
-    @param outer Right/Outer VP Tree
-
-*/
+/**
+ *  VP Tree Struct
+ *  @param vp Vantage point's Coordinates
+ *  @param md Vantage point's median distance
+ *  @param idx  Vantage point index
+ *  @param inner Left/Inner VP Tree
+ *  @param outer Right/Outer VP Tree
+ **/
 typedef struct VPTree VPTree;
 struct VPTree
 {
@@ -61,14 +60,14 @@ struct VPTree
 };
 
 
-/*!
-    Query point struct
-    @param idx Index of point
-    @param coord Array of vectors for each dimension (D)
-    @param ndist Array of K nearest neighbor distances
-    @param nidx Array of K nearest neighbor indexes
-    @param best Closest neighbor's distance
-    @param worst Furthest neighbor's distance
+/**
+ *  Query point struct
+ *  @param idx Index of point
+ *  @param coord Array of vectors for each dimension (D)
+ *  @param ndist Array of K nearest neighbor distances
+ *  @param nidx Array of K nearest neighbor indexes
+ *  @param best Closest neighbor's distance
+ *  @param worst Furthest neighbor's distance
 */
 typedef struct Point Point;
 struct Point
@@ -83,56 +82,56 @@ struct Point
 
 
 
-/*!
-    Return inner VP Tree
-    @param T A VP Tree
-    \return The vantage-point subtree
+/**
+ *  Return inner VP Tree
+ *  @param T A VP Tree
+ *  \return The vantage-point subtree
 */
 VPTree * inner_T(VPTree * T);
 
 
-/*!
-    Return outer VP Tree
-    @param T A VP Tree
-    \return The vantage point subtree
+/**
+ *  Return outer VP Tree
+ *  @param T A VP Tree
+ *  \return The vantage point subtree
 */
 VPTree * outer_T(VPTree * T);
 
 
-/*!
-    Return median of VP Tree
-    @param T A VP Tree
-    \return The median distance
+/**
+ *  Return median of VP Tree
+ *  @param T A VP Tree
+ *  \return The median distance
 */
 double md_T(VPTree * T);
 
 
-/*!
-    Return VP coordinates of a Tree
-    @param T A VP Tree
-    \return The coordinates [d-dimensional vector]
+/**
+ *  Return VP coordinates of a Tree
+ *  @param T A VP Tree
+ *  \return The coordinates [d-dimensional vector]
 */
 double * vp_T(VPTree * T);
 
 
-/*!
-    Return VP index
-    @param T A VP Tree
-    \return The index to the input vector of data points
+/**
+*  Return VP index
+*   @param T A VP Tree
+*   \return The index to the input vector of data points
 */
 int idx_T(VPTree * T);
 
-/*!
-    Checks if a VP Tree has children
-    @param T A VP Tree
-    \return True if the VP Tree is a leaf
+/**
+ * Checks if a VP Tree has children
+ *  @param T A VP Tree
+ *  \return True if the VP Tree is a leaf
 */
 bool is_leaf(VPTree* T); 
 
 
-/*!
-    Deletes VP Tree and all of it's children.
-    @param T A VP Tree
+/**
+ *  Deletes VP Tree and all of it's children.
+ *  @param T A VP Tree
 */
 void delete_T(VPTree* T);
 
@@ -156,6 +155,7 @@ void search_work(VPTree* T, Point* p);
 */
 void searchVPT(VPTree* T, Point* p);
 
+
 /**
  * @brief Finds distance between two vectors. The
  * dimensions of the vectors are taken through
@@ -167,5 +167,16 @@ void searchVPT(VPTree* T, Point* p);
  */
 double distance(double* p1, double* p2);
 
+
+/**
+ * @brief Prints the structure of a VP Tree.
+ * 
+ * @param T VP Tree
+ * @param depth Used for recursive printing, 
+ * should be set to zero.
+ * 
+ * @return nothing of use
+ */
+void print_vpt(VPTree* T, int depth);
 
 #endif  //#ifndef knn_v2_h_

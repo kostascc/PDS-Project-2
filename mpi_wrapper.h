@@ -45,6 +45,11 @@ void mpi_abort_msg(char* msg);
  */
 void mpi_finish_local();
 
+/**
+ * @brief Finishes local job silently
+ */
+void mpi_finalize();
+
 
 /*********************************************
  *               MPI Calls

@@ -58,17 +58,28 @@ int main(int argc, char** argv)
      ** Cleanup **
      *************/
     
-    free(r.X);
-    free(r.Y);
-    
-    if( _MODE_V1_RUNNING || _MODE_V2_RUNNING )
-    {
-        // Stop MPI Node
-        mpi_finish_local();
+    // if(r.X!=NULL)
+    // {
+    //     free(r.X);
+    //     r.X = NULL;
+    // }
 
-        // It shouldn't get to this
-        return EXIT_FAILURE;
+    if(r.Y!=NULL)
+    {
+        free(r.Y);
+        r.Y = NULL;
     }
+    
+    fflush(stdout);
+    fflush(stderr);
+    // if( _MODE_V1_RUNNING || _MODE_V2_RUNNING )
+    // {
+    //     // Stop MPI Node
+    //     // mpi_finish_local();
+
+    //     // It shouldn't get to this
+    //     return EXIT_FAILURE;
+    // }
 
     return 0;
     

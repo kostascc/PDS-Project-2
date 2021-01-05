@@ -137,3 +137,9 @@ void mpi_finish_local()
     exit(EXIT_SUCCESS);
 }
 
+void mpi_finalize()
+{
+    if(DEBUG_MPI)
+        printf("\nNode Successfully Finished...\n");
+    MPI_Finalize();
+}
