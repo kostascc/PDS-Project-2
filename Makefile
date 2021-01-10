@@ -1,6 +1,7 @@
 CC=gcc
 MPICC=mpicc
 CILKCC=/usr/local/OpenCilk-9.0.1-Linux/bin/clang
+#CILKCC=/mnt/apps/prebuilt/OpenCilk/9.0.1/build/bin/clang
 CFLAGS=-O3
 
 default: all
@@ -49,6 +50,15 @@ main:
 tester: 
 	$(CC) $(CFLAGS) -o tester.o tester.c
 
+multirunner:
+	$(CC) $(CFLAGS) -o multirunner.o multirunner.c
+	rm -f v*time.exp_
+	./multirunner.o $(ARGV)
+
+archive:
+	make clean
+	tar --exclude='./.git' --exclude='./mtx' --exclude='*.vscode' --exclude='archive.tar.gz' --exclude='./archive.tar.gz' --exclude='./knnring' --exclude='*.exp_' --exclude='*.tar.gz' -zcvf archive.tar.gz .
+
 all: prog tester
 
 prog: auxlib mpi_wrapper mmio mat mmarket knn_v0 knn_v1 knn_v2 main
@@ -59,7 +69,10 @@ test:
 	./main.o $(ARGS)
 
 clean:
+	rm -f *.tar.gz
 	rm -f *.so
 	rm -f *.o
 	rm -f *.lib
 	rm -f *.txt
+	rm -f *.a
+	rm -f *.out
