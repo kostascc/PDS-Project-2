@@ -363,7 +363,7 @@ knnresult kNN(double * X, double * Y, int n, int m, int d, int k)
     
     if(_TIMER_PRINT&&!_MODE_V1_RUNNING)
     {
-        printf(" > V0 took %f s\n", delta_us);
+        printf(" > V0 took %f s [N:%d, D:%d, K:%d]\n", delta_us, n, d, k);
     }
 
 

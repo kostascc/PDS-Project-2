@@ -538,7 +538,7 @@ _runtime startup(int argc, char** argv)
         exit(EXIT_FAILURE);
     }
 
-    if(d<1||d>200)
+    if(d<1||d>200000)
     {
         printf("Illegal Parameters (d<1 or d>200).\n");
         exit(EXIT_FAILURE);
