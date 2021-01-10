@@ -1,3 +1,10 @@
+/**
+ * PDS Project 2
+ * 
+ * Copyright 2021 Ⓒ K. Chatzis
+ * kachatzis <at> ece.auth.gr
+ */
+
 #include <stdio.h>   /* printf, stderr, fprintf */
 #include <unistd.h>  /* _exit, fork */
 #include <stdlib.h>  /* exit */

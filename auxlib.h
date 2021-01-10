@@ -1,3 +1,8 @@
+// PDS Project 2
+// 
+// Copyright 2021 Ⓒ K. Chatzis
+// kachatzis <at> ece.auth.gr
+
 #ifndef auxlib_h__
 #define auxlib_h__
 

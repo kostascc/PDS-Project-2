@@ -1,3 +1,8 @@
+// PDS Project 2
+// 
+// Copyright 2021 Ⓒ K. Chatzis
+// kachatzis <at> ece.auth.gr
+
 #ifndef knn_v0_h__
 #define knn_v0_h__
 

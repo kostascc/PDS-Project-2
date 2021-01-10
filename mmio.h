@@ -1,10 +1,7 @@
-/* 
-*   Matrix Market I/O library for ANSI C
-*
-*   See http://math.nist.gov/MatrixMarket for details.
-*
-*
-*/
+// PDS Project 2
+// 
+// Copyright 2021 Ⓒ K. Chatzis
+// kachatzis <at> ece.auth.gr
 
 #ifndef MM_IO_H
 #define MM_IO_H

@@ -1,3 +1,8 @@
+// PDS Project 2
+// 
+// Copyright 2021 Ⓒ K. Chatzis
+// kachatzis <at> ece.auth.gr
+
 #ifndef mmarket_h__
 #define mmarket_h__
 
