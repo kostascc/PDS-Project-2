@@ -79,32 +79,34 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
 
     double *XX = NULL;
     
-    if(DEBUG_CHK_BATCH)
-    {
-        XX = malloc(n_all*d*sizeof(double));
-        if(XX==NULL) mpi_abort_msg("Malloc Failed (XX)");
-        memcpy(&XX[0], &X[0], n_all*d*sizeof(double));
-    }
+    // if(DEBUG_CHK_BATCH)
+    // {
+    //     XX = malloc(n_all*d*sizeof(double));
+    //     if(XX==NULL) mpi_abort_msg("Malloc Failed (XX)");
+    //     memcpy(&XX[0], &X[0], n_all*d*sizeof(double));
+    // }
 
 
     // Nodes other than the main, should
     // receive the X matrix first.
     // Node 0 already has it.
-    if(node_id>0)
-    {
-        mpi_receive_data_b(MPI_MODE_DATA_DISTRIBUTION, X, n_all*d, node_receive, mpi_request);
-    }
+    // if(node_id>0)
+    // {
+    //     mpi_receive_data_b(MPI_MODE_DATA_DISTRIBUTION, X, n_all*d, node_receive, mpi_request);
+    // }
 
     // All nodes, except the last one, 
     // should send the matrix to the
     // next one.
-    if(node_id != cluster_size-1)
-    {
-        mpi_send_data_b(MPI_MODE_DATA_DISTRIBUTION, X, n_all*d, node_send, mpi_request);
-    }
+    // if(node_id != cluster_size-1)
+    // {
+    //     mpi_send_data_b(MPI_MODE_DATA_DISTRIBUTION, X, n_all*d, node_send, mpi_request);
+    // }
 
     // Hold on to local data only
     memcpy(&X[0], &X[ d*(n_all/cluster_size)*node_id ], d*n_per_node(node_id, cluster_size, n_all) *sizeof(double));
+    X = realloc(X, d*n_per_node(node_id, cluster_size, n_all)*sizeof(double));
+    if(X==NULL) mpi_abort_msg("Realloc Failed (X)");
 
     // Copy X to Y
     memcpy(&Y[0], &X[0], d*n_per_node(node_id, cluster_size, n_all) *sizeof(double));
@@ -232,7 +234,7 @@ knnresult distrAllkNN(double * X, int n_all, int d, int k)
     float delta_us = (float) ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000)/ (1000000);
     if(_TIMER_PRINT)
     {
-        printf(" > V1 took %f s\n", delta_us);
+        printf(" > V1 took %f s [N:%d, D:%d, K:%d]\n", delta_us, n_all, d, k);
     }
 
     mpi_finalize();

@@ -57,24 +57,24 @@ knnresult distrAllkNNVPT(double * X, int n_all, int d, int k)
     K = k;  // Nearest Neighbors
 
 
-    if(node_id>0)
-    {
-        mpi_receive_data_b(MPI_MODE_DATA_DISTRIBUTION, X, n_all*d, node_receive, mpi_request);
-    }
+    // if(node_id>0)
+    // {
+    //     mpi_receive_data_b(MPI_MODE_DATA_DISTRIBUTION, X, n_all*d, node_receive, mpi_request);
+    // }
 
-    // All nodes, except the last one, 
-    // should send the matrix to the
-    // next one.
-    if(node_id != cluster_size-1)
-    {
-        mpi_send_data_b(MPI_MODE_DATA_DISTRIBUTION, X, n_all*d, node_send, mpi_request);
-    }
+    // // All nodes, except the last one, 
+    // // should send the matrix to the
+    // // next one.
+    // if(node_id != cluster_size-1)
+    // {
+    //     mpi_send_data_b(MPI_MODE_DATA_DISTRIBUTION, &X[D*(n_all/cluster_size)], (cluster_size-node_id)*(n_all/cluster_size)*d, node_send, mpi_request);
+    // }
 
-    double *XX = NULL;
+    // double *XX = NULL;
 
-    XX = malloc(n_all*d*sizeof(double));
-    if(XX==NULL) mpi_abort_msg("Malloc Failed (XX)");
-    memcpy(&XX[0], &X[0], n_all*d*sizeof(double));
+    // XX = malloc(n_all*d*sizeof(double));
+    // if(XX==NULL) mpi_abort_msg("Malloc Failed (XX)");
+    // memcpy(&XX[0], &X[0], n_all*d*sizeof(double));
 
 
     int node_offset  = node_id*(n_all/cluster_size);
@@ -137,7 +137,8 @@ knnresult distrAllkNNVPT(double * X, int n_all, int d, int k)
     free(dist_arr);
     dist_arr = NULL;
 
-    // if(DEBUG_VPTREE)
+    // printf("\n");
+    // if(node_id==0)
     //     print_vpt(T, 0);    // Print VP Tree for Debugging
 
     // kNN Results per batch
@@ -236,7 +237,7 @@ knnresult distrAllkNNVPT(double * X, int n_all, int d, int k)
             free(_point->ndist);
             free(_point->nidx);
             free(_point);
-            // _point = NULL;
+            _point = NULL;
 
         }
 
@@ -263,9 +264,6 @@ knnresult distrAllkNNVPT(double * X, int n_all, int d, int k)
 
     mpi_send_data_wait(mpi_request);
     
-    delete_T(T);
-    T = NULL;
-
 
     tmp_node_id = node_id; // For Debugging auxlib, TODO: Remove
 
@@ -327,8 +325,11 @@ knnresult distrAllkNNVPT(double * X, int n_all, int d, int k)
     float delta_us = (float) ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000)/ (1000000);
     if(_TIMER_PRINT)
     {
-        printf(" > V2 took %f s\n", delta_us);
+        printf(" > V2 took %f s [N:%d, D:%d, K:%d]\n", delta_us, n_all, d, k);
     }
+
+    delete_T(T);
+    T = NULL;
 
     // printf("Saved: %d\n", _saved);
 
@@ -434,31 +435,6 @@ double distance(double* p1, double* p2)
 
 enum sub_T_enum {inner = 1, outer = 0}; 
 
-bool check_intersection(VPTree* T, Point* p, enum sub_T_enum sub_T)
-{
-    return true;
-    if(sub_T == inner)
-    {
-        if(T->inner != NULL)
-            if(  T->inner->md > distance(T->vp, p->coord) )
-            {
-                _saved++;
-                return false;
-            }
-                
-    }
-    if(sub_T == outer)
-    {
-        if(T->outer != NULL)
-            if(  T->outer->md < distance(T->vp, p->coord) )
-            {
-                _saved++;
-                return false;
-            }
-                
-    }
-    return true;
-}
 
 void search_vpt(VPTree* T, Point* p)
 {
@@ -499,29 +475,13 @@ void search_vpt(VPTree* T, Point* p)
 
         if( distance((double*)T->vp, (double*)p->coord) < T->md )
         {
-            // if(DEBUG_VPSEARCH)
-                // printf("...Inner\n");
-
-            
             search_vpt(T->inner, p);
-
-            // TODO: ..
-            // if( check_intersection )
-            // {
-            if(check_intersection(T, p, outer))
-                search_vpt(T->outer, p);
-        }
-        else /* if ( distance(T->vp, p) > T->md  )*/
-        {
-            // if(DEBUG_VPSEARCH)
-            //     printf("...Outer\n");
             search_vpt(T->outer, p);
-
-            // if( check_intersection )
-            // {
-            if(check_intersection(T, p, inner))
-                search_vpt(T->inner, p);
-            // }
+        }
+        else
+        {
+            search_vpt(T->outer, p);
+            search_vpt(T->inner, p);
         }
 
 
@@ -742,7 +702,10 @@ void delete_T(VPTree* T)
     cilk_spawn delete_T(T->inner);
     cilk_spawn delete_T(T->outer);
 
-    cilk_spawn free(T);
+    // if(T->bin!=NULL)
+    //     free(T->bin);
+
+    free(T);
 
     cilk_sync;
 
